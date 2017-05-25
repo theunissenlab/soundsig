@@ -3,7 +3,7 @@ import operator
 import numpy as np
 
 import matplotlib.pyplot as plt
-from lasp.plots import make_phase_image
+from soundsig.plots import make_phase_image
 
 
 class ComplexPCA(object):

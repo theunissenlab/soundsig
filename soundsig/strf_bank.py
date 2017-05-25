@@ -1,7 +1,7 @@
 import numpy as np
 
 import matplotlib.pyplot as plt
-from lasp.plots import multi_plot
+from soundsig.plots import multi_plot
 
 """
 Implementation of S. Zayd Enam's STRF modeling stuff:

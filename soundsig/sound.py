@@ -22,9 +22,9 @@ import matplotlib.colors as pltcolors
 import matplotlib.mlab as mlab
 
 import colorsys
-from lasp.signal import lowpass_filter, gaussian_window, correlation_function
-from lasp.timefreq import gaussian_stft
-from lasp.detect_peaks import *
+from soundsig.signal import lowpass_filter, gaussian_window, correlation_function
+from soundsig.timefreq import gaussian_stft
+from soundsig.detect_peaks import *
 
 
 class WavFile():

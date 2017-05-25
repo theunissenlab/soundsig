@@ -7,9 +7,9 @@ import nitime.algorithms as ntalg
 from nitime import utils as ntutils
 from scipy.ndimage import convolve1d
 
-from lasp.signal import gaussian_window
-from lasp.spikes import compute_psth
-from lasp.timefreq import gaussian_stft
+from soundsig.signal import gaussian_window
+from soundsig.spikes import compute_psth
+from soundsig.timefreq import gaussian_stft
 
 
 class CoherenceData(object):

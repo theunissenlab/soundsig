@@ -11,8 +11,8 @@ import numpy as np
 from scipy.interpolate import splrep,splev
 from scipy.stats import pearsonr
 import time
-from lasp.quasirand import quasirand
-from lasp.signal import find_extrema
+from soundsig.quasirand import quasirand
+from soundsig.signal import find_extrema
 
 
 def create_mirrored_spline(mini, maxi, s):

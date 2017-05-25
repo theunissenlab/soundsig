@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 import nitime.algorithms as ntalg
 from nitime import utils as ntutils
-from lasp.signal import lowpass_filter, bandpass_filter, correlation_function
+from soundsig.signal import lowpass_filter, bandpass_filter, correlation_function
 
 from brian import hears, Hz
 

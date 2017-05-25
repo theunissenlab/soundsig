@@ -1,6 +1,6 @@
 import copy
 import numpy as np
-from lasp.incrowd import ConvolutionalInCrowdModel, fast_conv, fast_conv_grouped
+from soundsig.incrowd import ConvolutionalInCrowdModel, fast_conv, fast_conv_grouped
 
 
 class ConvolutionalLinearModel(ConvolutionalInCrowdModel):

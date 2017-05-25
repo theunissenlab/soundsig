@@ -6,7 +6,7 @@ from scipy.signal import hilbert
 from scipy.stats import pearsonr
 
 import matplotlib.pyplot as plt
-from lasp.signal import find_extrema
+from soundsig.signal import find_extrema
 
 
 class IMF(object):
