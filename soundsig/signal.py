@@ -563,7 +563,47 @@ def correlation_function(s1, s2, lags, mean_subtract=True, normalize=True):
 
     return cf
 
+def linear_filter1D(sin, sout, lag=0):
+    """ Estimates the linear causal filter  between sin and sout which are both one dimensional arrays of
+    equal length. Estimation based on the normal equation in the Fourier Domain.
+    lags is the number of points in the past of the filter.
+    returns the weights of the filter."""
+    
+    assert len(sin) == len(sout), "Signals must be same length! len(sin)=%d, len(sout)=%d" % (len(sin), len(sout))
+    assert np.sum(np.isnan(sin)) == 0, "There are NaNs in sin"
+    assert np.sum(np.isnan(sout)) == 0, "There are NaNs in sout"
+    
+    lags = np.asarray(range(-lag, lag+1, 1))             
+    corrSinSout = correlation_function(sin, sout, lags, mean_subtract=True, normalize=False)
+    corrSinSin = correlation_function(sin, sin, lags, mean_subtract=True, normalize=False)
+ 
+    
+    if lag == 0:
+        h = corrSinSout/corrSinSin
+    else:
+        # Normalize in the frequency domain
+        corrSinSoutF = fft(corrSinSout)
+        corrSinSinF = fft(corrSinSin)
+        hF = corrSinSoutF/np.abs(corrSinSinF)
+        htemp = ifft(hF)
+        imid = len(lags)/2
+        h = htemp[imid:]  
+        
+    plt.figure()
+    plt.subplot(131)
+    plt.plot(corrSinSout)
+    plt.title('Cross-Corr')
+    plt.subplot(132)
+    plt.plot(corrSinSin)
+    plt.title('Auto-Corr')
+    plt.subplot(133)
+    plt.plot(h)
+    plt.title('Filter')
+        
+    return h
+        
 
+    
 def coherency(s1, s2, lags, plot=False, window_fraction=None, noise_floor_db=None):
     """ Compute the coherency between two signals s1 and s2.
 
