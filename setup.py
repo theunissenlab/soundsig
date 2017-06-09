@@ -11,8 +11,8 @@ setup(
                       'matplotlib',
                       'tables',
                       'h5py',
+                      'mne',
                       'nitime',
-                      'spams',
                       'brian',
                       'pandas'
         ]
