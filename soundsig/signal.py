@@ -3,7 +3,7 @@ import mne
 import pandas as pd
 from scipy.fftpack import fft,fftfreq,ifft,fftshift
 from scipy.ndimage import convolve1d
-from scipy.signal import filter_design, resample,filtfilt
+from scipy.signal import filter_design, resample, filtfilt, hann 
 import matplotlib.pyplot as plt
 import nitime.algorithms as ntalg
 from sklearn.decomposition import PCA,RandomizedPCA
@@ -563,8 +563,8 @@ def correlation_function(s1, s2, lags, mean_subtract=True, normalize=True):
 
     return cf
 
-def linear_filter1D(sin, sout, lag=0):
-    """ Estimates the linear causal filter  between sin and sout which are both one dimensional arrays of
+def linear_filter1D(sin, sout, lag=0, debug=0):
+    """ Estimates the linear filter  between sin and sout which are both one dimensional arrays of
     equal length. Estimation based on the normal equation in the Fourier Domain.
     lags is the number of points in the past of the filter.
     returns the weights of the filter."""
@@ -576,31 +576,55 @@ def linear_filter1D(sin, sout, lag=0):
     lags = np.asarray(range(-lag, lag+1, 1))             
     corrSinSout = correlation_function(sin, sout, lags, mean_subtract=True, normalize=False)
     corrSinSin = correlation_function(sin, sin, lags, mean_subtract=True, normalize=False)
- 
+    corrSoutSout = correlation_function(sout, sout, lags, mean_subtract=True, normalize=False)
+    win = hann(2*lag+1)
+
     
     if lag == 0:
         h = corrSinSout/corrSinSin
+        fvals = 0
+        gf = corrSinSout**2/(corrSinSin*corrSoutSout)
     else:
         # Normalize in the frequency domain
-        corrSinSoutF = fft(corrSinSout)
-        corrSinSinF = fft(corrSinSin)
+        corrSinSoutF = fft(corrSinSout*win)
+        corrSinSinF = fft(corrSinSin*win)
+        corrSoutSoutF = fft(corrSoutSout*win)
         hF = corrSinSoutF/np.abs(corrSinSinF)
-        htemp = ifft(hF)
-        imid = len(lags)/2
-        h = htemp[imid:]  
+        gf = np.abs(corrSinSoutF*corrSinSoutF.conj())/(np.abs(corrSinSinF)*np.abs(corrSoutSoutF))
+        fvals = fftfreq(len(corrSinSout))
+        h = ifft(hF)
+
+# Plots for debugging/analyzing
+    if debug:       
+        # Time domain plots
+        plt.figure()
+        plt.subplot(141)
+        plt.plot(lags, corrSinSout*win)
+        plt.title('Cross-Corr')
+        plt.subplot(142)
+        plt.plot(lags, corrSinSin*win)
+        plt.title('Auto-Corr Input')
+        plt.subplot(143)
+        plt.plot(lags, corrSoutSout*win)
+        plt.title('Auto-Corr Output')
+        plt.subplot(144)
+        plt.plot(lags, h)
+        plt.title('Filter')
+    
+        # Frequency domain plots
+        plt.figure()
+        fmid = len(fvals)/2
+        plt.subplot(131)
+        plt.plot(fvals[0:fmid], abs(corrSinSinF[0:fmid]) )
+        plt.title('Input Power')
+        plt.subplot(132)
+        plt.plot(fvals[0:fmid], abs(corrSoutSoutF[0:fmid]) )
+        plt.title('Output Power')
+        plt.subplot(133)
+        plt.plot(fvals[0:fmid], gf[0:fmid])
+        plt.title('Coherence')
         
-    plt.figure()
-    plt.subplot(131)
-    plt.plot(corrSinSout)
-    plt.title('Cross-Corr')
-    plt.subplot(132)
-    plt.plot(corrSinSin)
-    plt.title('Auto-Corr')
-    plt.subplot(133)
-    plt.plot(h)
-    plt.title('Filter')
-        
-    return h
+    return h, lags, gf, fvals
         
 
     
