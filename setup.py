@@ -14,6 +14,7 @@ setup(
                       'mne',
                       'nitime',
                       'brian',
-                      'pandas'
+                      'pandas',
+                      'weave'
         ]
 )
