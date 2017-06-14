@@ -567,6 +567,7 @@ def linear_filter1D(sin, sout, lag=0, debug=0):
     """ Estimates the linear filter  between sin and sout which are both one dimensional arrays of
     equal length. Estimation based on the normal equation in the Fourier Domain.
     lags is the number of points in the past of the filter.
+    signals are zeroed but the bias term is not returned.
     returns the weights of the filter."""
     
     assert len(sin) == len(sout), "Signals must be same length! len(sin)=%d, len(sout)=%d" % (len(sin), len(sout))
