@@ -415,16 +415,20 @@ class BioSound(object):
             xl = 0.0
             xh = f_high
             plt.axis((xl, xh, yl, yh))
-            plt.plot([self.q1, self.q1], [yl, yh], 'k--')
-            plt.plot([self.q2, self.q2], [yl, yh], 'k--')
-            plt.plot([self.q3, self.q3], [yl, yh], 'k--')
-        
-            F1Mean = self.F1[~np.isnan(self.F1)].mean()
-            F2Mean = self.F2[~np.isnan(self.F2)].mean()
-            F3Mean = self.F3[~np.isnan(self.F3)].mean()
-            plt.plot([F1Mean, F1Mean], [yl, yh], 'r--', linewidth=2.0)
-            plt.plot([F2Mean, F2Mean], [yl, yh], 'c--', linewidth=2.0)
-            plt.plot([F3Mean, F3Mean], [yl, yh], 'b--', linewidth=2.0)
+            
+            if self.q1 != None:
+                plt.plot([self.q1, self.q1], [yl, yh], 'k--')
+                plt.plot([self.q2, self.q2], [yl, yh], 'k--')
+                plt.plot([self.q3, self.q3], [yl, yh], 'k--')
+                
+            if self.F1 != None:        
+                F1Mean = self.F1[~np.isnan(self.F1)].mean()
+                F2Mean = self.F2[~np.isnan(self.F2)].mean()
+                F3Mean = self.F3[~np.isnan(self.F3)].mean()
+                plt.plot([F1Mean, F1Mean], [yl, yh], 'r--', linewidth=2.0)
+                plt.plot([F2Mean, F2Mean], [yl, yh], 'c--', linewidth=2.0)
+                plt.plot([F3Mean, F3Mean], [yl, yh], 'b--', linewidth=2.0)
+                
             plt.show()
   
     # Table of results
@@ -451,8 +455,9 @@ class BioSound(object):
         plt.text(-0.1, 0.5, textstr)
         textstr = '   Q1 F = %.2f Hz, Q2 F= %.2f Hz, Q3 F= %.2f Hz' % (self.q1, self.q2, self.q3 )
         plt.text(-0.1, 0.4, textstr)
-        textstr = '   For1 = %.2f Hz, For2 = %.2f Hz, For3= %.2f Hz' % (F1Mean, F2Mean, F3Mean )
-        plt.text(-0.1, 0.3, textstr)
+        if self.F1 != None:
+            textstr = '   For1 = %.2f Hz, For2 = %.2f Hz, For3= %.2f Hz' % (F1Mean, F2Mean, F3Mean )
+            plt.text(-0.1, 0.3, textstr)
         textstr = 'Mean Time = %.2f s, Std Time= %.2f s' % (self.meantime, self.stdtime)
         plt.text(-0.1, 0.2, textstr)
         textstr = '   Skew = %.2f, Kurtosis = %.2f Entropy=%.2f' % (self.skewtime, self.kurtosistime, self.entropytime)

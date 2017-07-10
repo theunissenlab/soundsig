@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier as RF
 from sklearn import cross_validation
 
 
-def discriminatePlot(X, y, cVal, titleStr=''):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
@@ -21,7 +21,7 @@ def discriminatePlot(X, y, cVal, titleStr=''):
     CVFOLDS = 10
     MINCOUNT = 10
     MINCOUNTTRAINING = 5
-    figdir = '/Users/frederictheunissen/Documents/Data/Julie/Acoustical Analysis/Figures Voice'
+    # figdir = '/Users/frederictheunissen/Documents/Data/Julie/Acoustical Analysis/Figures Voice'
 
     # Initialize Variables and clean up data
     classes, classesCount = np.unique(y, return_counts = True)  # Classes to be discriminated should be same as ldaMod.classes_

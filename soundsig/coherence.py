@@ -414,6 +414,7 @@ def compute_mtcoherence(s1, s2, sample_rate, window_size, bandwidth=15.0, chunk_
     tapers,eigs = ntalg.dpss_windows(sample_length_bins, NW, K)
     if debug:
         print '[compute_coherence] bandwidth=%0.1f, # of tapers: %d' % (bandwidth, len(eigs))
+        print eigs
 
     #break signal into chunks and estimate coherence for each chunk
     nchunks = int(np.floor(len(s1) / float(sample_length_bins)))
@@ -455,7 +456,7 @@ def compute_mtcoherence(s1, s2, sample_rate, window_size, bandwidth=15.0, chunk_
         syy = ntalg.mtm_cross_spectrum(s2_fft, s2_fft, w2, sides='onesided')
 
         #compute coherence
-        coherence = np.abs(sxy)**2 / (sxx * syy)
+        coherence = np.abs(sxy)**2 / (np.abs(sxx) * np.abs(syy))
         coherence_estimates.append(coherence)
 
     #compute variance
