@@ -443,9 +443,8 @@ class BioSound(object):
                 textstr = 'Mean Fund = %.2f Hz Mean Saliency = %.2f Mean Fund2 = %.2f PF2 = %.2f%%' % (self.fund, self.sal, self.fund2, self.voice2percent)
             else:
                 textstr = 'Mean Fund = %.2f Hz Mean Saliency = %.2f No 2nd Voice Detected' % (self.fund, self.sal)
-        else:
-            textstr = 'Fundamental is ill defined'
-        plt.text(-0.1, 0.8, textstr)
+            plt.text(-0.1, 0.8, textstr)
+            
         if self.fund is not None:
             textstr = '   Max Fund = %.2f Hz, Min Fund = %.2f Hz, CV = %.2f' % (self.maxfund, self.minfund, self.cvfund) 
             plt.text(-0.1, 0.7, textstr)
@@ -462,8 +461,9 @@ class BioSound(object):
         plt.text(-0.1, 0.2, textstr)
         textstr = '   Skew = %.2f, Kurtosis = %.2f Entropy=%.2f' % (self.skewtime, self.kurtosistime, self.entropytime)
         plt.text(-0.1, 0.1, textstr)
-        textstr = 'RMS = %.2f, Max Amp = %.2f' % (self.rms, self.maxAmp)
-        plt.text(-0.1, 0.0, textstr)
+        if self.rms != None and self.maxAmp != None :
+            textstr = 'RMS = %.2f, Max Amp = %.2f' % (self.rms, self.maxAmp)
+            plt.text(-0.1, 0.0, textstr)
         
         plt.axis('off')        
         plt.show()

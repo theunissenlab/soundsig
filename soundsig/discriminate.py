@@ -1,3 +1,7 @@
+# Get ready for python 3
+
+from __future__ import print_function
+
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
@@ -7,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier as RF
 from sklearn import cross_validation
 
 
-def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
@@ -15,6 +19,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
     # y group labels n rows
     # rgb color code for each data point - should be the same for each data beloging to the same group
     # titleStr title for plots
+    # figdir is a directory name (folder name) for eps figures
+    # Xcolname is a np.array or list of strings with column names for printout display
     # returns: ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses
 
     # Global Parameters
@@ -37,11 +43,11 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
 
     # Do we have enough data?  
     if (nClasses < 2):
-        print 'Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT)
+        print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT))
         return -1, -1, -1, -1 , -1, -1, -1
     cvFolds = min(min(classesCount), CVFOLDS)
     if (cvFolds < CVFOLDS):
-        print 'Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS)
+        print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
    
     # Data size and color values   
     nD = XGood.shape[1]                 # number of features in X
@@ -51,16 +57,18 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
         icl = (yGood == cl).nonzero()[0][0]
         cClasses.append(np.append(cValGood[icl],1.0))
     cClasses = np.asarray(cClasses)
+    
+    # Use a uniform prior 
     myPrior = np.ones(nClasses)*(1.0/nClasses)  
 
     # Perform a PCA for dimensionality reduction so that the covariance matrix can be fitted.
     nDmax = int(np.fix(np.sqrt(nX/5)))
     if nDmax < nD:
-        print 'Warning: Insufficient data for', nD, 'parameters. PCA projection to', nDmax, 'dimensions.' 
+        print ('Warning: Insufficient data for', nD, 'parameters. PCA projection to', nDmax, 'dimensions.' )
     nDmax = min(nD, nDmax)
     pca = PCA(n_components=nDmax)
     Xr = pca.fit_transform(XGood)
-    print 'Variance explained is %.2f%%' % (sum(pca.explained_variance_ratio_)*100.0)
+    print ('Variance explained is %.2f%%' % (sum(pca.explained_variance_ratio_)*100.0))
     
     
     # Initialise Classifiers  
@@ -126,15 +134,27 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
     # Check labels
     for a, b in zip(classes, ldaMod.classes_):
         if a != b:
-            print 'Error in ldaPlot: labels do not match'
+            print ('Error in ldaPlot: labels do not match')
   
-    # Print the coefficients of first 3 DFA 
-    print 'LDA Weights:'
-    print 'DFA1:', ldaMod.coef_[0,:]
-    if nClasses > 2:
-        print 'DFA2:', ldaMod.coef_[1,:] 
-    if nClasses > 3:
-        print 'DFA3:', ldaMod.coef_[2,:] 
+    # Print the five largest coefficients of first 3 DFA
+    MAXCOMP = 3        # Maximum number of DFA componnents
+    MAXWEIGHT = 5     # Maximum number of weights printed for each componnent
+    
+    ncomp = min(MAXCOMP, nClasses)
+    nweight = min(MAXWEIGHT, nD)
+    weights = np.dot(ldaMod.coef_[0:ncomp,:], pca.components_)
+    
+    print('LDA Weights:')
+    for ic in range(ncomp):
+        idmax = np.argsort(np.abs(weights[ic,:]))[::-1]
+        print('DFA %d: '%ic, end = '')
+        for iw in range(nweight):
+            if type(Xcolname) == None:
+                colstr = 'C%d' % idmax[iw]
+            else:
+                colstr = Xcolname[idmax[iw]]
+            print('%s %.3f; ' % (colstr, float(weights[ic, idmax[iw]]) ), end='')
+        print()
         
     # Obtain fits in this rotated space for display purposes   
     ldaMod.fit(Xrr, yGood)    
@@ -255,9 +275,9 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.'):
     qdaScoreSE = qdaScores.std() * 100.0 
     rfScoreSE = rfScores.std() * 100.0 
     
-    print ("Number of classes %d. Chance level %.2f %%") % (nClasses, 100.0/nClasses)
-    print ("%s LDA: %.2f (+/- %0.2f) %%") % (titleStr, ldaScore, ldaScoreSE)
-    print ("%s QDA: %.2f (+/- %0.2f) %%") % (titleStr, qdaScore, qdaScoreSE)
-    print ("%s RF: %.2f (+/- %0.2f) %%") % (titleStr, rfScore, rfScoreSE)
+    print ("Number of classes %d. Chance level %.2f %%" % (nClasses, 100.0/nClasses))
+    print ("%s LDA: %.2f (+/- %0.2f) %%" % (titleStr, ldaScore, ldaScoreSE))
+    print ("%s QDA: %.2f (+/- %0.2f) %%" % (titleStr, qdaScore, qdaScoreSE))
+    print ("%s RF: %.2f (+/- %0.2f) %%" % (titleStr, rfScore, rfScoreSE))
     return ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses
 
