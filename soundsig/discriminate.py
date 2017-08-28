@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier as RF
 from sklearn import cross_validation
 
 
-def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
@@ -44,7 +44,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None):
     # Do we have enough data?  
     if (nClasses < 2):
         print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT))
-        return -1, -1, -1, -1 , -1, -1, -1
+        return -1, -1, -1, -1 , -1, -1, -1, -1
     cvFolds = min(min(classesCount), CVFOLDS)
     if (cvFolds < CVFOLDS):
         print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
@@ -135,136 +135,148 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None):
     for a, b in zip(classes, ldaMod.classes_):
         if a != b:
             print ('Error in ldaPlot: labels do not match')
+            
+# Check the within-group covariance in the rotated space 
+#    covs = []
+#    for group in classes:
+#        Xg = Xrr[yGood == group, :]
+#        covs.append(np.atleast_2d(np.cov(Xg,rowvar=False)))
+#    withinCov = np.average(covs, axis=0, weights=myPrior)
   
     # Print the five largest coefficients of first 3 DFA
     MAXCOMP = 3        # Maximum number of DFA componnents
     MAXWEIGHT = 5     # Maximum number of weights printed for each componnent
     
-    ncomp = min(MAXCOMP, nClasses)
+    ncomp = min(MAXCOMP, nClasses-1)
     nweight = min(MAXWEIGHT, nD)
-    weights = np.dot(ldaMod.coef_[0:ncomp,:], pca.components_)
+    
+    # The scalings_ has the eigenvectors of the LDA in columns and the pca.componnents has the eigenvectors of PCA in columns
+    weights = np.dot(ldaMod.scalings_[:,0:ncomp].T, pca.components_)
     
     print('LDA Weights:')
     for ic in range(ncomp):
         idmax = np.argsort(np.abs(weights[ic,:]))[::-1]
         print('DFA %d: '%ic, end = '')
         for iw in range(nweight):
-            if type(Xcolname) == None:
+            if Xcolname is None:
                 colstr = 'C%d' % idmax[iw]
             else:
                 colstr = Xcolname[idmax[iw]]
             print('%s %.3f; ' % (colstr, float(weights[ic, idmax[iw]]) ), end='')
         print()
         
-    # Obtain fits in this rotated space for display purposes   
-    ldaMod.fit(Xrr, yGood)    
-    qdaMod.fit(Xrr, yGood)
-    rfMod.fit(Xrr, yGood)
+    if plotFig:
+        # Obtain fits in this rotated space for display purposes   
+        ldaMod.fit(Xrr, yGood)    
+        qdaMod.fit(Xrr, yGood)
+        rfMod.fit(Xrr, yGood)
     
-    XrrMean = Xrr.mean(0)
+        XrrMean = Xrr.mean(0)
                 
-    # Make a mesh for plotting
-    x1, x2 = np.meshgrid(np.arange(-6.0, 6.0, 0.1), np.arange(-6.0, 6.0, 0.1))
-    xm1 = np.reshape(x1, -1)
-    xm2 = np.reshape(x2, -1)
-    nxm = np.size(xm1)
-    Xm = np.zeros((nxm, Xrr.shape[1]))
-    Xm[:,0] = xm1
-    if Xrr.shape[1] > 1 :
-        Xm[:,1] = xm2
+        # Make a mesh for plotting
+        x1, x2 = np.meshgrid(np.arange(-6.0, 6.0, 0.1), np.arange(-6.0, 6.0, 0.1))
+        xm1 = np.reshape(x1, -1)
+        xm2 = np.reshape(x2, -1)
+        nxm = np.size(xm1)
+        Xm = np.zeros((nxm, Xrr.shape[1]))
+        Xm[:,0] = xm1
+        if Xrr.shape[1] > 1 :
+            Xm[:,1] = xm2
         
-    for ix in range(2,Xrr.shape[1]):
-        Xm[:,ix] = np.squeeze(np.ones((nxm,1)))*XrrMean[ix]
+        for ix in range(2,Xrr.shape[1]):
+            Xm[:,ix] = np.squeeze(np.ones((nxm,1)))*XrrMean[ix]
         
-    XmcLDA = np.zeros((nxm, 4))  # RGBA values for color for LDA
-    XmcQDA = np.zeros((nxm, 4))  # RGBA values for color for QDA
-    XmcRF = np.zeros((nxm, 4))  # RGBA values for color for RF
+        XmcLDA = np.zeros((nxm, 4))  # RGBA values for color for LDA
+        XmcQDA = np.zeros((nxm, 4))  # RGBA values for color for QDA
+        XmcRF = np.zeros((nxm, 4))  # RGBA values for color for RF
 
     
-    # Predict values on mesh for plotting based on the first two DFs     
-    yPredLDA = ldaMod.predict_proba(Xm) 
-    yPredQDA = qdaMod.predict_proba(Xm) 
-    yPredRF = rfMod.predict_proba(Xm)
+        # Predict values on mesh for plotting based on the first two DFs     
+        yPredLDA = ldaMod.predict_proba(Xm) 
+        yPredQDA = qdaMod.predict_proba(Xm) 
+        yPredRF = rfMod.predict_proba(Xm)
 
     
-    # Transform the predictions in color codes
-    maxLDA = yPredLDA.max()
-    for ix in range(nxm) :
-        cWeight = yPredLDA[ix,:]                               # Prob for all classes
-        cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
-        # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses
-        XmcLDA[ix,:] = np.dot(cWinner, cClasses)
-        XmcLDA[ix,3] = cWeight.max()/maxLDA
+        # Transform the predictions in color codes
+        maxLDA = yPredLDA.max()
+        for ix in range(nxm) :
+            cWeight = yPredLDA[ix,:]                               # Prob for all classes
+            cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
+            # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses
+            XmcLDA[ix,:] = np.dot(cWinner, cClasses)
+            XmcLDA[ix,3] = cWeight.max()/maxLDA
     
-    # Plot the surface of probability    
-    plt.figure(facecolor='white', figsize=(10,3))
-    plt.subplot(131)
-    Zplot = XmcLDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
-    plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
-    if nClasses > 2:
-        plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
-    else:
-        plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-    plt.title('%s: LDA pC %.0f %%' % (titleStr, (ldaScores.mean()*100.0)))
-    plt.axis('square')
-    plt.xlim((-6, 6))
-    plt.ylim((-6, 6))    
-    plt.xlabel('DFA 1')
-    plt.ylabel('DFA 2')
+        # Plot the surface of probability    
+        plt.figure(facecolor='white', figsize=(10,3))
+        plt.subplot(131)
+        Zplot = XmcLDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
+        plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
+        if nClasses > 2:
+            plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
+        else:
+            plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+        plt.title('%s: LDA pC %.0f %%' % (titleStr, (ldaScores.mean()*100.0)))
+        plt.axis('square')
+        plt.xlim((-6, 6))
+        plt.ylim((-6, 6))    
+        plt.xlabel('DFA 1')
+        plt.ylabel('DFA 2')
 
     
-    # Transform the predictions in color codes
-    maxQDA = yPredQDA.max()
-    for ix in range(nxm) :
-        cWeight = yPredQDA[ix,:]                               # Prob for all classes
-        cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
-        # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses
-        XmcQDA[ix,:] = np.dot(cWinner, cClasses)
-        XmcQDA[ix,3] = cWeight.max()/maxQDA
+        # Transform the predictions in color codes
+        maxQDA = yPredQDA.max()
+        for ix in range(nxm) :
+            cWeight = yPredQDA[ix,:]                               # Prob for all classes
+            cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
+            # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses
+            XmcQDA[ix,:] = np.dot(cWinner, cClasses)
+            XmcQDA[ix,3] = cWeight.max()/maxQDA
+    
+        # Plot the surface of probability    
+        plt.subplot(132)
+        Zplot = XmcQDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
+        plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
+        if nClasses > 2:
+            plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
+        else:
+            plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+        plt.title('%s: QDA pC %.0f %%' % (titleStr, (qdaScores.mean()*100.0)))
+        plt.xlabel('DFA 1')
+        plt.ylabel('DFA 2')
+        plt.axis('square')
+        plt.xlim((-6, 6))
+        plt.ylim((-6, 6))
+        
+    
+    
+    
+        # Transform the predictions in color codes
+        maxRF = yPredRF.max()
+        for ix in range(nxm) :
+            cWeight = yPredRF[ix,:]           # Prob for all classes
+            cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
+            # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses  # Weighted colors does not work
+            XmcRF[ix,:] = np.dot(cWinner, cClasses)
+            XmcRF[ix,3] = cWeight.max()/maxRF
     
     # Plot the surface of probability    
-    plt.subplot(132)
-    Zplot = XmcQDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
-    plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
-    if nClasses > 2:
-        plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
-    else:
-        plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-    plt.title('%s: QDA pC %.0f %%' % (titleStr, (qdaScores.mean()*100.0)))
-    plt.xlabel('DFA 1')
-    plt.ylabel('DFA 2')
-    plt.axis('square')
-    plt.xlim((-6, 6))
-    plt.ylim((-6, 6))
-    plt.savefig('%s/%s.eps' % (figdir,titleStr))
+        plt.subplot(133)
+        Zplot = XmcRF.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
+        plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
+        if nClasses > 2:    
+            plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
+        else:
+            plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            
+        plt.title('%s: RF pC %.0f %%' % (titleStr, (rfScores.mean()*100.0)))
+        plt.xlabel('DFA 1')
+        plt.ylabel('DFA 2')
+        plt.axis('square')
+        plt.xlim((-6, 6))
+        plt.ylim((-6, 6))
     
-    
-    
-    # Transform the predictions in color codes
-    maxRF = yPredRF.max()
-    for ix in range(nxm) :
-        cWeight = yPredRF[ix,:]           # Prob for all classes
-        cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
-        # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses  # Weighted colors does not work
-        XmcRF[ix,:] = np.dot(cWinner, cClasses)
-        XmcRF[ix,3] = cWeight.max()/maxRF
-    
-    # Plot the surface of probability    
-    plt.subplot(133)
-    Zplot = XmcRF.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
-    plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
-    if nClasses > 2:    
-        plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
-    else:
-        plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-    plt.title('%s: RF pC %.0f %%' % (titleStr, (rfScores.mean()*100.0)))
-    plt.xlabel('DFA 1')
-    plt.ylabel('DFA 2')
-    plt.axis('square')
-    plt.xlim((-6, 6))
-    plt.ylim((-6, 6))
-    
-    plt.show()
+        plt.show()
+        plt.savefig('%s/%s.eps' % (figdir,titleStr))
 
 
     # Results
@@ -279,5 +291,5 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None):
     print ("%s LDA: %.2f (+/- %0.2f) %%" % (titleStr, ldaScore, ldaScoreSE))
     print ("%s QDA: %.2f (+/- %0.2f) %%" % (titleStr, qdaScore, qdaScoreSE))
     print ("%s RF: %.2f (+/- %0.2f) %%" % (titleStr, rfScore, rfScoreSE))
-    return ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses
+    return ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses, weights
 
