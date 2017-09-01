@@ -15,6 +15,7 @@ setup(
                       'nitime',
                       'brian',
                       'pandas',
+                      'scikits.talkbox',
                       'weave'
         ]
 )
