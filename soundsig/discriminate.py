@@ -9,6 +9,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.ensemble import RandomForestClassifier as RF
 from sklearn import cross_validation
+from scipy.stats import binom
 
 
 def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False):
@@ -44,7 +45,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     # Do we have enough data?  
     if (nClasses < 2):
         print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT))
-        return -1, -1, -1, -1 , -1, -1, -1, -1
+        return -1, -1, -1, -1 , -1, -1, -1, -1, -1
     cvFolds = min(min(classesCount), CVFOLDS)
     if (cvFolds < CVFOLDS):
         print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
@@ -78,11 +79,12 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
 
         
     # Perform CVFOLDS fold cross-validation to get performance of classifiers.
-    ldaScores = np.zeros(cvFolds)
-    qdaScores = np.zeros(cvFolds)
-    rfScores = np.zeros(cvFolds)
+    ldaYes = 0
+    qdaYes = 0
+    rfYes = 0
+    cvCount = 0
+    
     skf = cross_validation.StratifiedKFold(yGood, cvFolds)
-    iskf = 0
     
     for train, test in skf:
         
@@ -113,18 +115,13 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         qdaMod.fit(XrTrain, yTrain)        
         rfMod.fit(XrTrain, yTrain)
         
+        
+        ldaYes += np.around((ldaMod.score(Xr[test[goodInd]], yGood[test[goodInd]]))*goodInd.size)
+        qdaYes += np.around((qdaMod.score(Xr[test[goodInd]], yGood[test[goodInd]]))*goodInd.size)
+        rfYes += np.around((rfMod.score(Xr[test[goodInd]], yGood[test[goodInd]]))*goodInd.size)
+        cvCount += goodInd.size
 
-        ldaScores[iskf] = ldaMod.score(Xr[test[goodInd]], yGood[test[goodInd]])
-        qdaScores[iskf] = qdaMod.score(Xr[test[goodInd]], yGood[test[goodInd]])
-        rfScores[iskf] = rfMod.score(Xr[test[goodInd]], yGood[test[goodInd]])
 
-        iskf += 1
-     
-    if (iskf !=  cvFolds):
-        cvFolds = iskf
-        ldaScores.reshape(cvFolds)
-        qdaScores.reshape(cvFolds)
-        rfScores.reshape(cvFolds)
       
 # Refit with all the data  for the plots
         
@@ -215,7 +212,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
         else:
             plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-        plt.title('%s: LDA pC %.0f %%' % (titleStr, (ldaScores.mean()*100.0)))
+        plt.title('%s: LDA %d/%d' % (titleStr, ldaYes, cvCount))
         plt.axis('square')
         plt.xlim((-6, 6))
         plt.ylim((-6, 6))    
@@ -240,15 +237,13 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
         else:
             plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
-        plt.title('%s: QDA pC %.0f %%' % (titleStr, (qdaScores.mean()*100.0)))
+        plt.title('%s: QDA %d/%d' % (titleStr, qdaYes, cvCount))
         plt.xlabel('DFA 1')
         plt.ylabel('DFA 2')
         plt.axis('square')
         plt.xlim((-6, 6))
         plt.ylim((-6, 6))
-        
-    
-    
+          
     
         # Transform the predictions in color codes
         maxRF = yPredRF.max()
@@ -268,7 +263,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         else:
             plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
             
-        plt.title('%s: RF pC %.0f %%' % (titleStr, (rfScores.mean()*100.0)))
+        plt.title('%s: RF %d/%d' % (titleStr, rfYes, cvCount))
         plt.xlabel('DFA 1')
         plt.ylabel('DFA 2')
         plt.axis('square')
@@ -280,16 +275,27 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
 
 
     # Results
-    ldaScore = ldaScores.mean()*100.0
-    qdaScore = qdaScores.mean()*100.0
-    rfScore = rfScores.mean()*100.0
-    ldaScoreSE = ldaScores.std() * 100.0
-    qdaScoreSE = qdaScores.std() * 100.0 
-    rfScoreSE = rfScores.std() * 100.0 
+    ldaYes = int(ldaYes)
+    qdaYes = int(qdaYes)
+    rfYes = int(rfYes)
     
+    p = 1.0/nClasses
+    ldaP = 0
+    qdaP = 0
+    rfP = 0
+    
+    for k in range(ldaYes, cvCount+1):
+        ldaP += binom.pmf(k, cvCount, p)
+        
+    for k in range(qdaYes, cvCount+1):
+        qdaP += binom.pmf(k, cvCount, p)
+        
+    for k in range(rfYes, cvCount+1):
+        rfP += binom.pmf(k, cvCount, p)
+        
     print ("Number of classes %d. Chance level %.2f %%" % (nClasses, 100.0/nClasses))
-    print ("%s LDA: %.2f (+/- %0.2f) %%" % (titleStr, ldaScore, ldaScoreSE))
-    print ("%s QDA: %.2f (+/- %0.2f) %%" % (titleStr, qdaScore, qdaScoreSE))
-    print ("%s RF: %.2f (+/- %0.2f) %%" % (titleStr, rfScore, rfScoreSE))
-    return ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses, weights
+    print ("%s LDA: %.2f %% (%d/%d p=%.4f)" % (titleStr, 100.0*ldaYes/cvCount, ldaYes, cvCount, ldaP))
+    print ("%s QDA: %.2f %% (%d/%d p=%.4f)" % (titleStr, 100.0*qdaYes/cvCount, qdaYes, cvCount, qdaP))
+    print ("%s RF: %.2f %% (%d/%d p=%.4f)" % (titleStr, 100.0*rfYes/cvCount, rfYes, cvCount, rfP))
+    return ldaYes, qdaYes, rfYes, cvCount, ldaP, qdaP, rfP, nClasses, weights
 
