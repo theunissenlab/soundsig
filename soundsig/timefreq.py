@@ -16,7 +16,7 @@ import nitime.algorithms as ntalg
 from nitime import utils as ntutils
 from soundsig.signal import lowpass_filter, bandpass_filter, correlation_function
 
-from brian import hears, Hz
+# from brian import hears, Hz
 
 
 class ComplexSpectrumEstimator(object):
@@ -667,64 +667,64 @@ def define_f_bands(stt=180, stp=7000, n_bands=32, kind='log'):
         aud_fs = np.logspace(np.log10(stt), np.log10(stp), n_bands).astype(int)
     elif kind == 'lin':
         aud_fs = np.linspace(stt, stp, n_bands).astype(int)
-    elif kind == 'erb':
-        aud_fs = hears.erbspace(stt*Hz, stp*Hz, n_bands)
+ #   elif kind == 'erb':
+ #       aud_fs = hears.erbspace(stt*Hz, stp*Hz, n_bands)
     else:
         raise NameError("I don't know what kind of spacing that is")
     return aud_fs
 
 
-def extract_nsl_spectrogram(sig, Fs, cfs):
-    '''Implements a version of the "wav2aud" function in the NSL toolbox.
-    Uses Brian hears to chain most of the computations to be done online.
-
-    This is effectively what it does:
-        1. Gammatone filterbank at provided cfs (erbspace recommended)
-        2. Half-wave rectification
-        3. Low-pass filtering at 2Khz
-        4. First-order derivative across frequencies (basically just
-            taking the diff of successive frequencies to sharpen output)
-        5. Half-wave rectification #2
-        6. An exponentially-decaying average, with time constant chosen
-            to be similar to that reported in the NSL toolbox (8ms)
-
-    INPUTS
-    --------
-    sig : array
-        The auditory signals we'll use to extract. Should be time x feats, or 1-d
-    Fs : float, int
-        The sampling rate of the signal
-    cfs : list of floats, ints
-        The center frequencies that we'll use for initial filtering.
-
-    OUTPUTS
-    --------
-    out : array, [tpts, len(cfs)]
-        The auditory spectrogram of the signal
-    '''
-    Fs = float(Fs)*Hz
-    snd = hears.Sound(sig, samplerate=Fs)
-
-    # Cochlear model
-    snd_filt = hears.Gammatone(snd, cfs)
-
-    # Hair cell stages
-    clp = lambda x: np.clip(x, 0, np.inf)
-    snd_hwr = hears.FunctionFilterbank(snd_filt, clp)
-    snd_lpf = hears.LowPass(snd_hwr, 2000)
-
-    # Lateral inhibitory network
-    rands = lambda x: sigp.roll_and_subtract(x, hwr=True)
-    snd_lin = hears.FunctionFilterbank(snd_lpf, rands)
-
-    # Initial processing
-    out = snd_lin.process()
-
-    # Time integration.
-    # Time constant is 8ms, which we approximate with halfwidth of 12
-    half_pt = (12. / 1000) * Fs
-    out = pd.stats.moments.ewma(out, halflife=half_pt)
-    return out
+#def extract_nsl_spectrogram(sig, Fs, cfs):
+#    '''Implements a version of the "wav2aud" function in the NSL toolbox.
+#    Uses Brian hears to chain most of the computations to be done online.
+#
+#    This is effectively what it does:
+#        1. Gammatone filterbank at provided cfs (erbspace recommended)
+#        2. Half-wave rectification
+#        3. Low-pass filtering at 2Khz
+#        4. First-order derivative across frequencies (basically just
+#            taking the diff of successive frequencies to sharpen output)
+#        5. Half-wave rectification #2
+#        6. An exponentially-decaying average, with time constant chosen
+#            to be similar to that reported in the NSL toolbox (8ms)
+#
+#    INPUTS
+#    --------
+#    sig : array
+#        The auditory signals we'll use to extract. Should be time x feats, or 1-d
+#    Fs : float, int
+#        The sampling rate of the signal
+#    cfs : list of floats, ints
+#        The center frequencies that we'll use for initial filtering.
+#
+#    OUTPUTS
+#    --------
+#    out : array, [tpts, len(cfs)]
+#        The auditory spectrogram of the signal
+#    '''
+#    Fs = float(Fs)*Hz
+#    snd = hears.Sound(sig, samplerate=Fs)
+#
+#    # Cochlear model
+#    snd_filt = hears.Gammatone(snd, cfs)
+#
+#    # Hair cell stages
+#    clp = lambda x: np.clip(x, 0, np.inf)
+#    snd_hwr = hears.FunctionFilterbank(snd_filt, clp)
+#    snd_lpf = hears.LowPass(snd_hwr, 2000)
+#
+#    # Lateral inhibitory network
+#    rands = lambda x: sigp.roll_and_subtract(x, hwr=True)
+#    snd_lin = hears.FunctionFilterbank(snd_lpf, rands)
+#
+#    # Initial processing
+#    out = snd_lin.process()
+#
+#    # Time integration.
+#    # Time constant is 8ms, which we approximate with halfwidth of 12
+#    half_pt = (12. / 1000) * Fs
+#    out = pd.stats.moments.ewma(out, halflife=half_pt)
+#    return out
 
 
 def roll_and_subtract(sig, amt=1, axis=1, hwr=False):

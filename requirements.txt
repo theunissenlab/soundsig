@@ -1,4 +1,3 @@
-brian==1.4.3
 h5py==2.7.0
 matplotlib==2.0.2
 mne==0.14.1

@@ -12,7 +12,7 @@ from sklearn import cross_validation
 from scipy.stats import binom
 
 
-def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
@@ -20,7 +20,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     # y group labels n rows
     # rgb color code for each data point - should be the same for each data beloging to the same group
     # titleStr title for plots
-    # figdir is a directory name (folder name) for eps figures
+    # figdir is a directory name (folder name) for figures
     # Xcolname is a np.array or list of strings with column names for printout display
     # returns: ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses
 
@@ -34,11 +34,18 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     classes, classesCount = np.unique(y, return_counts = True)  # Classes to be discriminated should be same as ldaMod.classes_
     goodIndClasses = np.array([n >= MINCOUNT for n in classesCount])
     goodInd = np.array([b in classes[goodIndClasses] for b in y])
+    if testInd is not None:
+        # Check for goodInd - should be an np.array of dtype=bool
+        # Transform testInd into an index inside xGood and yGood
+        testIndx = testInd.nonzero()[0]
+        goodIndx = goodInd.nonzero()[0]
+        testInd = np.hstack([ np.where(goodIndx == testval)[0] for testval in testIndx])
+        trainInd = np.asarray([i for i in range(len(goodIndx)) if i not in testInd])
+        
     yGood = y[goodInd]
     XGood = X[goodInd]
     cValGood = cVal[goodInd]
-
-
+        
     classes, classesCount = np.unique(yGood, return_counts = True) 
     nClasses = classes.size         # Number of classes or groups  
 
@@ -46,9 +53,13 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     if (nClasses < 2):
         print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT))
         return -1, -1, -1, -1 , -1, -1, -1, -1, -1
-    cvFolds = min(min(classesCount), CVFOLDS)
-    if (cvFolds < CVFOLDS):
-        print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
+    
+    if testInd is None:
+        cvFolds = min(min(classesCount), CVFOLDS)
+        if (cvFolds < CVFOLDS):
+            print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
+    else:
+        cvFolds = 1
    
     # Data size and color values   
     nD = XGood.shape[1]                 # number of features in X
@@ -84,7 +95,10 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     rfYes = 0
     cvCount = 0
     
-    skf = cross_validation.StratifiedKFold(yGood, cvFolds)
+    if testInd is None:
+        skf = cross_validation.StratifiedKFold(yGood, cvFolds)
+    else:
+        skf = [(trainInd,testInd)]
     
     for train, test in skf:
         
@@ -204,7 +218,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             XmcLDA[ix,3] = cWeight.max()/maxLDA
     
         # Plot the surface of probability    
-        plt.figure(facecolor='white', figsize=(10,3))
+        plt.figure(facecolor='white', figsize=(10,4))
         plt.subplot(131)
         Zplot = XmcLDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
         plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
@@ -219,6 +233,17 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         plt.xlabel('DFA 1')
         plt.ylabel('DFA 2')
 
+        if removeTickLabels:
+            ax = plt.gca()
+        
+            labels = [item.get_text() for item in ax.get_xticklabels()]
+            empty_string_labels = ['']*len(labels)
+            ax.set_xticklabels(empty_string_labels)
+            
+            labels = [item.get_text() for item in ax.get_yticklabels()]
+            empty_string_labels = ['']*len(labels)
+            ax.set_yticklabels(empty_string_labels)
+        
     
         # Transform the predictions in color codes
         maxQDA = yPredQDA.max()
@@ -229,7 +254,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             XmcQDA[ix,:] = np.dot(cWinner, cClasses)
             XmcQDA[ix,3] = cWeight.max()/maxQDA
     
-        # Plot the surface of probability    
+        # Plot the surface of probability  
+
         plt.subplot(132)
         Zplot = XmcQDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
         plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
@@ -243,8 +269,17 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         plt.axis('square')
         plt.xlim((-6, 6))
         plt.ylim((-6, 6))
-          
-    
+           
+        if removeTickLabels:
+            ax = plt.gca()
+            labels = [item.get_text() for item in ax.get_xticklabels()]
+            empty_string_labels = ['']*len(labels)
+            ax.set_xticklabels(empty_string_labels)
+        
+            labels = [item.get_text() for item in ax.get_yticklabels()]
+            empty_string_labels = ['']*len(labels)
+            ax.set_yticklabels(empty_string_labels)
+   
         # Transform the predictions in color codes
         maxRF = yPredRF.max()
         for ix in range(nxm) :
@@ -269,9 +304,20 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         plt.axis('square')
         plt.xlim((-6, 6))
         plt.ylim((-6, 6))
-    
+        
+        if removeTickLabels:
+            ax = plt.gca()
+                        
+            labels = [item.get_text() for item in ax.get_xticklabels()]
+            empty_string_labels = ['']*len(labels)
+            ax.set_xticklabels(empty_string_labels)
+        
+            labels = [item.get_text() for item in ax.get_yticklabels()]
+            empty_string_labels = ['']*len(labels)
+            ax.set_yticklabels(empty_string_labels)
+        
         plt.show()
-        plt.savefig('%s/%s.eps' % (figdir,titleStr))
+        plt.savefig('%s/%s.png' % (figdir,titleStr), format='png', dpi=1000)
 
 
     # Results
