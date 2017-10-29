@@ -532,7 +532,7 @@ def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, c
     plotSpect[plotSpect < minB] = minB
                 
     iax = ax.imshow(plotSpect, aspect='auto', interpolation='nearest', origin='lower', extent=ex, cmap=colormap, vmin=minB, vmax=maxB)
-    plt.ylim(fmin, fmax)
+    ax.set_ylim(fmin, fmax)
     if not ticks:
         ax.set_xticks([])
         ax.set_yticks([])
