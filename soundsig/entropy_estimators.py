@@ -3,6 +3,8 @@
 # See readme.pdf for documentation
 # Or go to http://www.isi.edu/~gregv/npeet.html
 
+from __future__ import division, print_function
+
 import scipy.spatial as ss
 from scipy.special import digamma
 from math import log

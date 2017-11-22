@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import numpy as np
 import mne
 import pandas as pd
@@ -150,7 +152,7 @@ def mt_power_spectrum(s, sample_rate, window_size, low_bias=False, bandwidth=5.0
     for k in range(nchunks):
         si = k*sample_length_bins
         ei = min(len(s), si + sample_length_bins)
-        print 'si=%d, ei=%d, len(s)=%d' % (si, ei, len(s))
+        print('si=%d, ei=%d, len(s)=%d' % (si, ei, len(s)))
 
         ps_freq,mt_ps,var = ntalg.multi_taper_psd(s[si:ei], Fs=sample_rate, adaptive=True, BW=bandwidth, jackknife=False,
                                                   low_bias=low_bias, sides='onesided')
@@ -192,7 +194,7 @@ def gaussian_window(N, nstd):
     """
         Generate a Gaussian window of length N and standard deviation nstd.
     """
-    hnwinlen = (N + (1-N%2)) / 2
+    hnwinlen = (N + (1-N%2)) // 2
     gauss_t = np.arange(-hnwinlen, hnwinlen+1, 1.0)
     gauss_std = float(N) / float(nstd)
     gauss_window = np.exp(-gauss_t**2 / (2.0*gauss_std**2)) / (gauss_std*np.sqrt(2*np.pi))
@@ -296,12 +298,12 @@ def demodulate(Z, over_space=True, depth=1):
 
         pca_real = RandomizedPCA(n_components=1)
         pca_real.fit(Z.real)
-        print 'pca_real.components_.shape=',pca_real.components_.shape
+        print('pca_real.components_.shape=',pca_real.components_.shape)
         first_pc.real = pca_real.components_.squeeze()
         
         pca_imag = RandomizedPCA(n_components=1)
         pca_imag.fit(Z.imag)
-        print 'pca_imag.components_.shape=',pca_imag.components_.shape
+        print('pca_imag.components_.shape=',pca_imag.components_.shape)
         first_pc.imag = pca_imag.components_.squeeze()
 
         complex_pcs = np.array([first_pc])
@@ -348,8 +350,8 @@ def compute_coherence_over_time(signal, trials, Fs, n_perm=5, low=0, high=300):
     coh_perm = []
     for perm in xrange(n_perm):
         trial_ixs = np.random.permutation(np.arange(n_trials))
-        t1 = trial_ixs[:n_trials/2]
-        t2 = trial_ixs[n_trials/2:]
+        t1 = trial_ixs[:n_trials//2]
+        t2 = trial_ixs[n_trials//2:]
         
         # Split up trials and take the mean of each
         mn1, mn2 = [signal[trials.eval('epoch in @t_ix and time > 0').values].mean(level=('time'))
@@ -614,7 +616,7 @@ def linear_filter1D(sin, sout, lag=0, debug=0):
     
         # Frequency domain plots
         plt.figure()
-        fmid = len(fvals)/2
+        fmid = len(fvals)//2
         plt.subplot(131)
         plt.plot(fvals[0:fmid], abs(corrSinSinF[0:fmid]) )
         plt.title('Input Power')
@@ -646,7 +648,7 @@ def coherency(s1, s2, lags, plot=False, window_fraction=None, noise_floor_db=Non
     """
 
     # test for symmetry
-    i = len(lags) / 2
+    i = len(lags) // 2
     assert lags[i] == 0, "Midpoint of lags must be zero for coherency!"
     assert np.sum(-lags[:i] != lags[-i:][::-1]) == 0, "lags must be symmetric for coherency!"
 
@@ -671,8 +673,8 @@ def coherency(s1, s2, lags, plot=False, window_fraction=None, noise_floor_db=Non
 
     if np.sum(np.isnan(cf)) > 0:
         # print 'len(lags)=%d, len(s1)=%d, len(s2)=%d' % (len(lags), len(s1), len(s2))
-        print 'signals=',zip(s1, s2)
-        print 'shift_lags,cf=',zip(shift_lags, cf)
+        print('signals=',zip(s1, s2))
+        print('shift_lags,cf=',zip(shift_lags, cf))
         raise Exception("Nans in cf")
 
     assert np.sum(np.isnan(acf1)) == 0, "Nans in acf1"
@@ -713,7 +715,7 @@ def coherency(s1, s2, lags, plot=False, window_fraction=None, noise_floor_db=Non
     fi = freq >= 0
 
     if np.sum(np.abs(coh) > 1) > 0:
-        print 'Warning: coherency is > 1!'
+        print('Warning: coherency is > 1!')
 
     if plot:
         plt.figure()

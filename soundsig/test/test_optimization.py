@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 from unittest import TestCase
 
 import numpy as np
@@ -53,18 +55,18 @@ class OptimizationTest(TestCase):
         niter = 5000
         while not tgd.converged and tgd.iter < niter:
             tgd.iterate()
-            print 'iter %d, err=%f' % (tgd.iter, tgd.errors[-1])
+            print('iter %d, err=%f' % (tgd.iter, tgd.errors[-1]))
 
         found_bias = tgd.best_params[-1]
         found_filt = m.get_filter(tgd.best_params[:-1])
 
         filt_diff = (filt-found_filt)
-        print 'filt=',filt
-        print 'found_filt=',found_filt
-        print 'filt_diff=',filt_diff
+        print('filt=',filt)
+        print('found_filt=',found_filt)
+        print('filt_diff=',filt_diff)
         assert np.abs(filt_diff).sum() < 1e-3
 
-        print 'bias=',bias
-        print 'found_bias=',found_bias
-        print 'bias_diff=',bias-found_bias
+        print('bias=',bias)
+        print('found_bias=',found_bias)
+        print('bias_diff=',bias-found_bias)
         assert np.abs(bias-found_bias) < 1e-3

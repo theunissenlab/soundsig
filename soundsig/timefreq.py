@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import time
 
 from abc import ABCMeta,abstractmethod
@@ -49,7 +51,7 @@ class GaussianSpectrumEstimator(ComplexSpectrumEstimator):
         nwinlen = len(signal)
         if nwinlen % 2 == 0:
             nwinlen += 1
-        hnwinlen = nwinlen / 2
+        hnwinlen = nwinlen // 2
 
         #construct the window
         gauss_t = np.arange(-hnwinlen, hnwinlen+1, 1.0)
@@ -91,7 +93,7 @@ class MultiTaperSpectrumEstimator(ComplexSpectrumEstimator):
         tapers, eigs = ntalg.dpss_windows(slen, NW, K)
         ntapers = len(tapers)
         if debug:
-            print '[MultiTaperSpectrumEstimator.estimate] slen=%d, NW=%d, K=%d, bandwidth=%0.1f, ntapers: %d' % (slen, NW, K, self.bandwidth, ntapers)
+            print('[MultiTaperSpectrumEstimator.estimate] slen=%d, NW=%d, K=%d, bandwidth=%0.1f, ntapers: %d' % (slen, NW, K, self.bandwidth, ntapers))
 
         #compute a set of tapered signals
         s_tap = tapers * signal
@@ -221,7 +223,7 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
     nwinlen = int(sample_rate*window_length)
     if nwinlen % 2 == 0:
         nwinlen += 1
-    hnwinlen = nwinlen / 2
+    hnwinlen = nwinlen // 2
     assert len(s) > nwinlen, "len(s)=%d, nwinlen=%d" % (len(s), nwinlen)
 
     # get the values for the frequency axis by estimating the spectrum of a dummy slice
@@ -232,7 +234,7 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
 
     nincrement = int(np.round(sample_rate*increment))
     if zero_pad:
-        nwindows = len(s) / nincrement
+        nwindows = len(s) // nincrement
         # print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
         #pad the signal with zeros
         zs = np.zeros([len(s) + 2*hnwinlen])
@@ -280,10 +282,10 @@ def generate_sliding_windows(N, sample_rate, increment, window_length):
     nwinlen = int(sample_rate*window_length)
     if nwinlen % 2 == 0:
         nwinlen += 1
-    hnwinlen = nwinlen / 2
+    hnwinlen = nwinlen // 2
 
     nincrement = int(np.round(sample_rate*increment))
-    nwindows = N / nincrement
+    nwindows = N // nincrement
 
     windows = list()
     for k in range(nwindows):
@@ -400,14 +402,14 @@ class AmplitudeReassignment(object):
             for j,t in enumerate(spec_t):
                 inst_freq = ps_df[k, j]
                 group_delay = ps_dt[k, j]
-                print 'inst_freq=%0.6f, group_delay=%0.6f' % (inst_freq, group_delay)
+                print('inst_freq=%0.6f, group_delay=%0.6f' % (inst_freq, group_delay))
                 fnew = freq + inst_freq
                 tnew = group_delay + t
-                print 'fnew=%0.0f, tnew=%0.0f' % (fnew, tnew)
+                print('fnew=%0.0f, tnew=%0.0f' % (fnew, tnew))
                 row = np.array(np.nonzero(spec_f <= fnew)).max()
                 col = np.array(np.nonzero(spec_t <= tnew)).max()
-                print 'row=',row
-                print 'col=',col
+                print('row=',row)
+                print('col=',col)
                 ps_r[row, col] += 1.0
 
         ps_r /= len(spec_t)*len(spec_f)
@@ -452,11 +454,11 @@ class PhaseReassignment(object):
             for j,t in enumerate(spec_t):
                 tnew = max(0, t - (ps_df[k, j] / (2*np.pi)))
                 fnew = max(0, ps_dt[k, j] / (2*np.pi))
-                print 'fnew=%0.0f, tnew=%0.0f' % (fnew, tnew)
+                print('fnew=%0.0f, tnew=%0.0f' % (fnew, tnew))
                 row = np.array(np.nonzero(spec_f <= fnew)).max()
                 col = np.array(np.nonzero(spec_t <= tnew)).max()
-                print 'row=',row
-                print 'col=',col
+                print('row=',row)
+                print('col=',col)
                 ps_r[row, col] += 1.0
 
         ps_r /= len(spec_t)*len(spec_f)
@@ -530,14 +532,14 @@ def gaussian_bandpass_analytic(s, sample_rate, frequencies, bandwidths, round=Tr
 
     if round:
         pow2_length = 2 ** np.ceil(np.log2(len(s) + window_length))
-        window_length = (pow2_length - len(s)) / 2
+        window_length = (pow2_length - len(s)) / 2.0
 
     # Pad the input with zeros
     padded = np.pad(s,
-                    (int(window_length / 2), int(np.ceil(window_length / 2))),
+                    (int(window_length / 2.0), int(np.ceil(window_length / 2.0))),
                     'constant')
     input_length = len(padded)
-    input_start = int(window_length / 2)
+    input_start = int(window_length / 2.0)
 
     # Assign space for output
     analytic_signal = np.zeros((len(frequencies), len(s)), dtype=np.complex128)
@@ -595,7 +597,7 @@ def compute_mean_spectrogram(s, sample_rate, win_sizes, increment=None, num_freq
     timefreqs = list()
     for k,win_size in enumerate(win_sizes):
         if increment is None:
-            inc = win_sizes[0] / 2
+            inc = win_sizes[0] / 2  # TODO (kevin): i cant tell if this is supposed to floating point or integer division
         else:
             inc = increment
         t,freq,tf = timefreq(s, sample_rate, win_size, inc, spec_estimator)

@@ -6,6 +6,8 @@
 
 
 """
+from __future__ import division, print_function
+
 import copy
 import numpy as np
 from scipy.interpolate import splrep,splev
@@ -121,7 +123,7 @@ def compute_mean_envelope(s, nsamps=1000):
 
             #update the mean envelope for this dimension in an online way
             delta = env - mean_env[n, :]
-            mean_env[n, :] += delta / (k+1)
+            mean_env[n, :] += delta / (k+1.0)
             #esptime = time.time() - sptime
             #print '\t[%d] time for spline iteration on dimension %d: %0.6fs' % (k, n, esptime)
         #ietime = time.time() - istime
@@ -173,7 +175,7 @@ def sift(s, nsamps=100, resolution=50.0, max_iterations=30, verbose=False):
         for k in range(N):
             a,p = pearsonr(r[k, :], env[k, :])
             if np.isnan(a):
-                print '[iter %d] alpha=NaN for dimension %d!' % (iteration, k)
+                print('[iter %d] alpha=NaN for dimension %d!' % (iteration, k))
                 a = 1e-2
             alpha[k] = max(a, 1e-2)
 
@@ -188,8 +190,8 @@ def sift(s, nsamps=100, resolution=50.0, max_iterations=30, verbose=False):
         resolution_factor = np.log10(initial_energy / avg_envelope_energy)
 
         if verbose:
-            print 'sift iter %d: initial_energy=%0.3f, env_energy=%0.3f, avg_envelope_energy=%0.3f, final_alpha=%0.2f, resolution_factor=%0.2f' % \
-                  (iteration, initial_energy, env_energy, avg_envelope_energy, final_alpha, resolution_factor)
+            print('sift iter %d: initial_energy=%0.3f, env_energy=%0.3f, avg_envelope_energy=%0.3f, final_alpha=%0.2f, resolution_factor=%0.2f' %
+                  (iteration, initial_energy, env_energy, avg_envelope_energy, final_alpha, resolution_factor))
 
         if resolution_factor > resolution:
             converged = True
@@ -209,8 +211,8 @@ def memd(s, nimfs, nsamps=100, resolution=1.0, max_iterations=30, num_noise_chan
     imfs = list()
     N,T = s.shape
     if verbose:
-        print 'Starting MEMD: N=%d, T=%d, nimfs=%d, nsamps=%d, resolution=%0.2f, max_iterations=%d, num_noise_channels=%d' % \
-                        (N, T, nimfs, nsamps, resolution, max_iterations, num_noise_channels)
+        print('Starting MEMD: N=%d, T=%d, nimfs=%d, nsamps=%d, resolution=%0.2f, max_iterations=%d, num_noise_channels=%d' %
+                        (N, T, nimfs, nsamps, resolution, max_iterations, num_noise_channels))
     r = copy.copy(s)
 
     if num_noise_channels > 0:

@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 from copy import deepcopy
 import fnmatch
@@ -93,7 +95,7 @@ class WavFile():
         try:
             self.fundamental_freq = self.power_spectrum_f[peak_index]
         except IndexError:
-            print 'Could not identify fundamental frequency!'
+            print('Could not identify fundamental frequency!')
             self.fundamental_freq = 0.0
 
         #compute log spectrogram
@@ -524,7 +526,7 @@ def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, c
     else:
         if dBNoise is not None:
             maxB = 20*np.log10(plotSpect.max())
-            minB = ((maxB-dBNoise)/20)**10
+            minB = ((maxB-dBNoise)/20.0)**10
         else:
             maxB = plotSpect.max()
             minB = plotSpect.min()
@@ -684,7 +686,7 @@ def sox_convert_to_mono(file_path):
     base_file_name = file_name[:-4]
     output_file_path = os.path.join(root_dir, '%s_mono.wav' % base_file_name)
     cmd = 'sox \"%s\" -c 1 \"%s\"' % (file_path, output_file_path)
-    print cmd
+    print(cmd)
     subprocess.call(cmd, shell=True)
 
 
@@ -789,8 +791,8 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
     nt = dt.size
     nf = df.size
     if spectrogram.shape[1] != nt and spectrogram.shape[0] != nf:   
-        print 'Error in mps. Expected  %d bands in frequency and %d points in time' % (nf, nt)
-        print 'Spectrogram had shape %d, %d' % spectrogram.shape
+        print('Error in mps. Expected  %d bands in frequency and %d points in time' % (nf, nt))
+        print('Spectrogram had shape %d, %d' % spectrogram.shape)
         return 0, 0, 0
         
     # Z-score the flattened spectrogram
@@ -803,8 +805,8 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
             
     # Find the number of spectrogram points in the gaussian window 
     if dt[-1] < window:
-        print 'Warning in mps: window size is smaller or equal to spectrogram temporal extent.'
-        print 'mps will be calculate with a single window'
+        print('Warning in mps: window size is smaller or equal to spectrogram temporal extent.')
+        print('mps will be calculate with a single window')
         nWindow = nt - 1
     else:
         nWindow = mlab.find(dt>= window)[0]
@@ -812,7 +814,7 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
         nWindow += 1  # Make it odd size so that we have a symmetric window
         
     if nWindow < 64:
-        print 'Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window)
+        print('Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window))
         return 0, 0, 0
         
     # Generate the Gaussian window
@@ -823,11 +825,11 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
     for tmid in range(tShift, nt, tShift):
         
         # No zero padding at this point this could be better
-        tstart = tmid-(nWindow-1)/2-1
+        tstart = tmid-(nWindow-1)//2-1
         if tstart < 0:
             continue
                        
-        tend = tmid+(nWindow-1)/2
+        tend = tmid+(nWindow-1)//2
         if tend > nt:
             break
         nchunks += 1
@@ -944,12 +946,12 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
 
     # high pass filter the signal
-    highpassFilter = firwin(nfilt-1, 2*lowFc/fs, pass_zero=False)
+    highpassFilter = firwin(nfilt-1, 2.0*lowFc/fs, pass_zero=False)
     padlen = min(soundLen-10, 3*len(highpassFilter))
     soundIn = filtfilt(highpassFilter, [1.0], soundIn, padlen=padlen)
 
     # low pass filter the signal
-    lowpassFilter = firwin(nfilt, 2*highFc/fs)
+    lowpassFilter = firwin(nfilt, 2.0*highFc/fs)
     padlen = min(soundLen-10, 3*len(lowpassFilter))
     soundIn = filtfilt(lowpassFilter, [1.0], soundIn, padlen=padlen)
 
@@ -996,8 +998,8 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         if tval >= sound_dur:
             continue
         tind = int(np.fix(tval*fs))    # Center of window in ind
-        tstart = tind - (winLen-1)/2
-        tend = tind + (winLen-1)/2
+        tstart = tind - (winLen-1)//2
+        tend = tind + (winLen-1)//2
     
         if tstart < 0:
             winstart = - tstart
@@ -1040,8 +1042,8 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         if tval >= sound_dur:       # This should not happen here because the RMS should be zero
             continue
         tind = int(np.fix(tval*fs))    # Center of window in ind
-        tstart = tind - (winLen-1)/2
-        tend = tind + (winLen-1)/2
+        tstart = tind - (winLen-1)//2
+        tend = tind + (winLen-1)//2
     
         if tstart < 0:
             winstart = - tstart
@@ -1055,8 +1057,8 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         else:
             windend = winLen-1
             
-        tstart2 = tind - (winLen2-1)/2
-        tend2 = tind + (winLen2-1)/2
+        tstart2 = tind - (winLen2-1)//2
+        tend2 = tind + (winLen2-1)//2
     
         if tstart2 < 0:
             winstart2 = - tstart2
@@ -1084,7 +1086,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         # Calculate the frequencies and the bandwidth of the formants
         frqsFormants = angz*(fs/(2*np.pi))
         indices = np.argsort(frqsFormants)
-        bw = -1/2*(fs/(2*np.pi))*np.log(np.abs(rts))
+        bw = -0.5*(fs/(2*np.pi))*np.log(np.abs(rts))  # FIXME (kevin): I think this line was broken before... it was using 1/2
     
         # Keep formants above 500 Hz and with bandwidth < 500 # This was 1000 for bird calls
         formants = []
@@ -1160,10 +1162,10 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
 
         # Calculate power spectrum and cepstrum
         Y = fft(soundWin, n=winLen+1)
-        f = (fs/2.0)*(np.array(range((winLen+1)/2+1), dtype=float)/float((winLen+1)/2))
+        f = (fs/2.0)*(np.array(range((winLen+1)/2+1), dtype=float)/float((winLen+1)//2))
         fhigh = mlab.find(f >= highFc)[0]
     
-        powSound = 20.0*np.log10(np.abs(Y[0:(winLen+1)/2+1]))    # This is the power spectrum
+        powSound = 20.0*np.log10(np.abs(Y[0:(winLen+1)//2+1]))    # This is the power spectrum
         powSoundGood = powSound[0:fhigh]
         maxPow = max(powSoundGood)
         powSoundGood = powSoundGood - maxPow   # Set zero as the peak amplitude
@@ -1307,9 +1309,9 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
             plt.subplot(4,1,2)
             plt.cla()
             plt.plot(1000*(lags/fs), autoCorr)
-            plt.plot([1000.*lags[indMax]/fs, 1000*lags[indMax]/fs], [0, autoCorr[ind0]], 'k')
+            plt.plot([1000.*lags[indMax]/fs, 1000.*lags[indMax]/fs], [0, autoCorr[ind0]], 'k')
             plt.plot(1000.*lags/fs, envCorr, 'r', linewidth= 2)
-            plt.plot([1000*lags[indEnvMax]/fs, 1000*lags[indEnvMax]/fs], [0, autoCorr[ind0]], 'g', linewidth=2)
+            plt.plot([1000*lags[indEnvMax]/fs, 1000.*lags[indEnvMax]/fs], [0, autoCorr[ind0]], 'g', linewidth=2)
             plt.xlabel('Time (ms)')
               
             plt.subplot(4,1,3)
@@ -1337,10 +1339,10 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
             plt.cla()
             plt.plot(tCY, CY)
 #         plot(tCY, CY2, 'k--')
-            plt.plot([1000/fundCorrGuess, 1000/fundCorrGuess], [0, max(CY)], 'k')
-            plt.plot([1000/fundCorrAmpGuess, 1000/fundCorrAmpGuess], [0, max(CY)], 'g')
-            plt.plot([1000/fundStackGuess, 1000/fundStackGuess], [0, max(CY)], 'r')
-            plt.plot([1000/fundCepGuess, 1000/fundCepGuess], [0, max(CY)], 'y')
+            plt.plot([1000./fundCorrGuess, 1000./fundCorrGuess], [0, max(CY)], 'k')
+            plt.plot([1000./fundCorrAmpGuess, 1000./fundCorrAmpGuess], [0, max(CY)], 'g')
+            plt.plot([1000./fundStackGuess, 1000./fundStackGuess], [0, max(CY)], 'r')
+            plt.plot([1000./fundCepGuess, 1000./fundCepGuess], [0, max(CY)], 'y')
         
             #%         plot([(pkClosest-1)/fs (pkClosest-1)/fs], [0 max(CY)], 'g')
             #%         if ~isempty(ipk2)
@@ -1349,7 +1351,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
             #%         for ip=1:length(pks)
             #%             plot([(locs(ip)-1)/fs (locs(ip)-1)/fs], [0 pks(ip)/4], 'r')
             #%         end
-            plt.axis([0, 1000*np.size(CY)/(2*fs), 0, max(CY)])
+            plt.axis([0, 1000.*np.size(CY)/(2.*fs), 0, max(CY)])
             plt.xlabel('Time (ms)')
 
             plt.pause(1)
@@ -1494,7 +1496,7 @@ def inverse_real_spectrogram(spec, s_len,
     for i in range(iterations):
         phase_spec = spectrogram(estimated, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)[2]
         error = ((abs(spec_magnitude) - abs(phase_spec))**2).sum() / (abs(spec_magnitude)**2).sum()
-        print 'the error after iteration %d is %f' % (i+i, error)
+        print('the error after iteration %d is %f' % (i+i, error))
         spec_angle = np.angle(phase_spec)
         estimated_spec = spec_magnitude * np.exp(1j*spec_angle)
         estimated = inverse_spectrogram(estimated_spec, s_len, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)
