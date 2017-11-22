@@ -7,10 +7,10 @@ from scipy.fftpack import fft
 from scipy.ndimage import convolve1d
 from scipy.signal import welch
 
-from lasp.signal import correlation_function, bandpass_filter, coherency
-from lasp.coherence import coherence_jn
+from soundsig.signal import correlation_function, bandpass_filter, coherency
+from soundsig.coherence import coherence_jn
 
-from lasp.plots import custom_legend
+from soundsig.plots import custom_legend
 
 
 

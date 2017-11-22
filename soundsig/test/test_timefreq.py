@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 
 import nitime.algorithms as ntalg
 
-from lasp.sound import plot_spectrogram
+from soundsig.sound import plot_spectrogram
 
-from lasp.timefreq import GaussianSpectrumEstimator,MultiTaperSpectrumEstimator,timefreq,AmplitudeReassignment,PhaseReassignment, \
+from soundsig.timefreq import GaussianSpectrumEstimator,MultiTaperSpectrumEstimator,timefreq,AmplitudeReassignment,PhaseReassignment, \
     WaveletSpectrumEstimator, power_spectrum_from_acf
 
 

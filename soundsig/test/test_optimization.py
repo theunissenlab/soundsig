@@ -4,8 +4,8 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from lasp.optimization import ConvolutionalLinearModel, finite_diff_grad, ThresholdGradientDescent
-from lasp.incrowd import fast_conv
+from soundsig.optimization import ConvolutionalLinearModel, finite_diff_grad, ThresholdGradientDescent
+from soundsig.incrowd import fast_conv
 
 
 class OptimizationTest(TestCase):

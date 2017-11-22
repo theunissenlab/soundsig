@@ -7,9 +7,9 @@ from numpy.fft import fftfreq
 from scipy.fftpack import fft
 from scipy.ndimage import convolve1d
 
-from lasp.sound import plot_spectrogram
-from lasp.thirdparty.transform import WaveletAnalysis
-from lasp.timefreq import wavelet_scalogram, gaussian_stft
+from soundsig.sound import plot_spectrogram
+from soundsig.thirdparty.transform import WaveletAnalysis
+from soundsig.timefreq import wavelet_scalogram, gaussian_stft
 
 
 class WaveletTest(TestCase):

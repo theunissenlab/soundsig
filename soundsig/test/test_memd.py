@@ -5,8 +5,8 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from scipy.interpolate import splev
-from lasp.memd import create_mirrored_spline, compute_mean_envelope, sift
-from lasp.signal import find_extrema
+from soundsig.memd import create_mirrored_spline, compute_mean_envelope, sift
+from soundsig.signal import find_extrema
 
 
 class MEMDTest(unittest.TestCase):

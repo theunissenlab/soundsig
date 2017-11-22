@@ -3,9 +3,9 @@ from unittest import TestCase
 import numpy as np
 
 import matplotlib.pyplot as plt
-from lasp.timefreq import power_spectrum_jn
+from soundsig.timefreq import power_spectrum_jn
 
-from lasp.spikes import simulate_poisson, plot_raster, spike_trains_to_matrix
+from soundsig.spikes import simulate_poisson, plot_raster, spike_trains_to_matrix
 
 
 class SpikeFFTestCase(TestCase):

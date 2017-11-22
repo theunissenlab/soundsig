@@ -3,9 +3,9 @@ from unittest import TestCase
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lasp.sound import plot_spectrogram
-from lasp.incrowd import fast_conv
-from lasp.strfs import fit_strf_lasso, fit_strf_ridge, strf_conv, make_toeplitz
+from soundsig.sound import plot_spectrogram
+from soundsig.incrowd import fast_conv
+from soundsig.strfs import fit_strf_lasso, fit_strf_ridge, strf_conv, make_toeplitz
 
 
 class TestFitStrf(TestCase):

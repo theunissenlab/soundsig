@@ -3,8 +3,8 @@ from unittest import TestCase
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lasp.discrete_process import DiscreteProcessEstimator
-from lasp.colormaps import magma
+from soundsig.discrete_process import DiscreteProcessEstimator
+from soundsig.colormaps import magma
 
 
 class DiscreteProcessTest(TestCase):

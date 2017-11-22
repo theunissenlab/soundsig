@@ -3,7 +3,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from lasp.incrowd import ConvolutionalInCrowdModel, InCrowd, fast_conv
+from soundsig.incrowd import ConvolutionalInCrowdModel, InCrowd, fast_conv
 
 def test2():
     #construct sample input matrix

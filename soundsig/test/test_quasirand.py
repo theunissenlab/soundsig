@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from lasp.quasirand import quasirand
+from soundsig.quasirand import quasirand
 
 
 class QausirandlTest(unittest.TestCase):

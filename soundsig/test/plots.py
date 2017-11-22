@@ -2,8 +2,8 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from lasp.plots import boxplot_with_colors
-from lasp.spikes import plot_raster
+from soundsig.plots import boxplot_with_colors
+from soundsig.spikes import plot_raster
 
 
 def test_plot_raster():
