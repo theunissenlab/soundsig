@@ -76,7 +76,7 @@ class MEMDTest(unittest.TestCase):
         t = np.arange(0.0, 1.0+dt, dt)
         s = np.zeros([nchannels, len(t)])
 
-        for f,chans in freqs.iteritems():
+        for f,chans in freqs.items():
             for chan in chans:
                 s[chan, :] += np.sin(2*np.pi*f*t)
 

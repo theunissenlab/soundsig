@@ -17,7 +17,7 @@ from scipy.io.wavfile import read as read_wavfile
 from scipy.fftpack import fft, ifft, fftfreq, fft2, ifft2, dct
 from scipy.signal import resample, firwin, filtfilt
 from scipy.optimize import leastsq
-import scikits.talkbox as talkbox
+# import scikits.talkbox as talkbox  # TODO (kevin): talkbox does not seem to be supported anymore, not python3  compatible
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cmap
@@ -942,7 +942,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     soundLen = len(soundIn)
     nfilt = 1024
     if soundLen < 1024:
-        print 'Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen
+        print('Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
         return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
 
     # high pass filter the signal
