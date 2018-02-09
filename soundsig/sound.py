@@ -151,7 +151,7 @@ class BioSound(object):
 
         self.sound = soundWave  # sound pressure waveform 
         self.hashid = hashlib.md5(np.array_str(soundWave)).hexdigest()
-        self.samprate = fs      # sampling rate
+        self.samprate = float(fs) if isinstance(fs,int) else fs      # sampling rate
         self.emitter = emitter  # string for id of emitter
         self.type = calltype    # string for call type
         self.spectro = np.asarray([])    # Log spectrogram
