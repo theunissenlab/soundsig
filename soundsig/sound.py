@@ -386,7 +386,8 @@ class BioSound(object):
             maxB = soundSpect.max()
             minB = maxB-DBNOISE
             soundSpect[soundSpect < minB] = minB
-            plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minB, vmax=maxB)
+            minSpect = soundSpect.min()
+            plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minSpect, vmax=maxB)
         
         plt.ylim(f_low, f_high)
         plt.xlim(0, t[-1])
@@ -455,7 +456,7 @@ class BioSound(object):
         plt.text(-0.1, 0.5, textstr)
         textstr = '   Q1 F = %.2f Hz, Q2 F= %.2f Hz, Q3 F= %.2f Hz' % (self.q1, self.q2, self.q3 )
         plt.text(-0.1, 0.4, textstr)
-        if self.F1 != None:
+        if self.F1.size != 0:
             textstr = '   For1 = %.2f Hz, For2 = %.2f Hz, For3= %.2f Hz' % (F1Mean, F2Mean, F3Mean )
             plt.text(-0.1, 0.3, textstr)
         textstr = 'Mean Time = %.2f s, Std Time= %.2f s' % (self.meantime, self.stdtime)
@@ -468,6 +469,28 @@ class BioSound(object):
         
         plt.axis('off')        
         plt.show()
+        
+    # Plot Modulation Power spectrum if it exists
+    
+        #ex = (spectral_freq.min(), spectral_freq.max(), temporal_freq.min(), temporal_freq.max())
+        if self.mps.size != 0 :
+            plt.figure(4)
+            plt.clf()
+            cmap = plt.get_cmap('jet')
+            ex = (self.wt.min(), self.wt.max(), self.wf.min()*1e3, self.wf.max()*1e3)
+            logMPS = 10.0*np.log10(self.mps)
+            maxMPS = logMPS.max()
+            minMPS = maxMPS-DBNOISE
+            logMPS[logMPS < minMPS] = minMPS
+            plt.imshow(logMPS, interpolation='nearest', aspect='auto', origin='lower', cmap=cmap, extent=ex)
+            plt.ylabel('Spectral Frequency (Cycles/KHz)')
+            plt.xlabel('Temporal Frequency (Hz)')
+            plt.colorbar()
+            plt.ylim((0,self.wf.max()*1e3))
+            plt.title('Modulation Power Spectrum')
+            plt.show()
+        
+        
         plt.pause(1)   # To flush the plots?
 
 
@@ -724,19 +747,14 @@ def modulate_wave(s, samprate, freq):
     return c*s
 
 
-def mtfft(spectrogram, df, dt, Norm=False, Log=False):
+def mtfft(spectrogram, df, dt, Log=False):
     """
-        Compute the 2d modulation transfer function for a given time frequency slice.
+        Compute the 2d modulation power and phase for a given time frequency slice.
         return temporal_freq,spectral_freq,mps_pow,mps_phase
     """
-    #normalize and mean center the spectrogram 
-    sdata = copy.copy(spectrogram)
-    if Norm:
-        sdata /= sdata.max()
-        sdata -= sdata.mean()
 
     #take the 2D FFT and center it
-    smps = fft2(sdata)
+    smps = fft2(spectrogram)
     smps = fftshift(smps)
 
     #compute the log amplitude
@@ -784,7 +802,15 @@ def mtfft(spectrogram, df, dt, Norm=False, Log=False):
 def mps(spectrogram, df, dt, window=None, Norm=True):
     """
     Calculates the modulation power spectrum using overlapp and add method with a gaussian window of length window in s
+    Assumes that spectrogram is in dB.  df and dt are the axis of spectrogram.
     """
+    
+    # Debugging paramenter
+    debugPlot = False
+
+    # Resolution of spectrogram in DB
+    dbRES = 50 
+    
     # Check the size of the spectrogram vs dt
     nt = dt.size
     nf = df.size
@@ -793,18 +819,23 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
         print 'Spectrogram had shape %d, %d' % spectrogram.shape
         return 0, 0, 0
         
-    # Z-score the flattened spectrogram
+    # Z-score the flattened spectrogram is Norm is True
+    sdata = copy.copy(spectrogram)
+    
     if Norm:
-        spectrogram -= spectrogram.mean()
-        spectrogram /= spectrogram.std()
+        maxdata = sdata.max()
+        mindata = maxdata - dbRES
+        sdata[sdata< mindata] = mindata
+        sdata -= sdata.mean()
+        sdata /= sdata.std()
         
     if window == None:
         window = dt[-1]/10.0
             
     # Find the number of spectrogram points in the gaussian window 
     if dt[-1] < window:
-        print 'Warning in mps: window size is smaller or equal to spectrogram temporal extent.'
-        print 'mps will be calculate with a single window'
+        print ('Warning in mps: window size is smaller or equal to spectrogram temporal extent.')
+        print ('mps will be calculate with windows of %d points or %s s' % (nt-1, dt[-1]) )
         nWindow = nt - 1
     else:
         nWindow = mlab.find(dt>= window)[0]
@@ -816,29 +847,70 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
         return 0, 0, 0
         
     # Generate the Gaussian window
-    gt, w = gaussian_window(nWindow, 6)
+    gt, wg = gaussian_window(nWindow, 6)
     tShift = int(gt[-1]/3)
     nchunks = 0
     
+    # Pad the spectrogram with zeros.
+    minSdata = sdata.min()
+    sdataZeros = np.ones((sdata.shape[0], (nWindow-1)/2)) * minSdata
+    sdata = np.concatenate((sdataZeros, sdata, sdataZeros), axis = 1)
+    
+    if debugPlot:
+        plt.figure(1)
+        plt.clf()
+        plt.subplot()
+        plt.imshow(sdata, origin='lower')
+        plt.title('Scaled and Padded Spectrogram')
+        plt.show()
+        plt.pause(1)
+
+    
     for tmid in range(tShift, nt, tShift):
         
-        # No zero padding at this point this could be better
+        # t mid is in the original coordinates while tstart and tend
+        # are shifted to deal with the zero padding.
+        
         tstart = tmid-(nWindow-1)/2-1
+        tstart += (nWindow-1)/2
         if tstart < 0:
-            continue
+            print('Error in mps. tstart negative')
+            break;
                        
         tend = tmid+(nWindow-1)/2
-        if tend > nt:
+        tend += (nWindow-1)/2
+        if tend > sdata.shape[1]:
+            print('Error in mps. tend too large')
             break
         nchunks += 1
         
         # Multiply the spectrogram by the window
-        wSpect = spectrogram[:,tstart:tend]
+        wSpect = deepcopy(sdata[:,tstart:tend])
+        
+                # Debugging code
+        if debugPlot:
+            plt.figure(nchunks+1)
+            plt.clf()
+            plt.subplot(121)
+            plt.imshow(wSpect, origin='lower')
+            plt.title('%d Middle (%d %d)' % (tmid, tstart, tend) )
+
+            
         for fInd in range(nf):
-            wSpect[fInd,:] = wSpect[fInd,:]*w
+            wSpect[fInd,:] = wSpect[fInd,:]*wg
+            
+        # Debugging code
+        if debugPlot:
+            plt.figure(nchunks+1)
+            plt.subplot(122)
+            plt.imshow(wSpect, origin='lower')
+            plt.title('After')
+            plt.show()
+            plt.pause(1)
+            raw_input("Press Enter to continue...")
             
         # Get the 2d FFT
-        wf, wt, mps_pow,mps_phase = mtfft(wSpect, df, dt[tstart:tend])
+        wf, wt, mps_pow, mps_phase = mtfft(wSpect, df, dt[0:tend-tstart])
         if nchunks == 1:
             mps_powAvg = mps_pow
         else:
