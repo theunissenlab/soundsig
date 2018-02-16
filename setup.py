@@ -15,6 +15,15 @@ setup(
                       'nitime',
                       'pandas',
                       'scikits.talkbox',
-                      'weave'
+                      'sklearn',
+                      'copy',
+                      'hashlib',
+                      'fnmatch',
+                      'math',
+                      'os',
+                      'subprocess',
+                      'struct',
+                      'colorsys',
+                      'wave'
         ]
 )

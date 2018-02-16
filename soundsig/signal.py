@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 import mne
 import pandas as pd
@@ -150,7 +152,7 @@ def mt_power_spectrum(s, sample_rate, window_size, low_bias=False, bandwidth=5.0
     for k in range(nchunks):
         si = k*sample_length_bins
         ei = min(len(s), si + sample_length_bins)
-        print 'si=%d, ei=%d, len(s)=%d' % (si, ei, len(s))
+        print ('si=%d, ei=%d, len(s)=%d' % (si, ei, len(s)))
 
         ps_freq,mt_ps,var = ntalg.multi_taper_psd(s[si:ei], Fs=sample_rate, adaptive=True, BW=bandwidth, jackknife=False,
                                                   low_bias=low_bias, sides='onesided')
@@ -296,12 +298,12 @@ def demodulate(Z, over_space=True, depth=1):
 
         pca_real = RandomizedPCA(n_components=1)
         pca_real.fit(Z.real)
-        print 'pca_real.components_.shape=',pca_real.components_.shape
+        print ('pca_real.components_.shape=',pca_real.components_.shape)
         first_pc.real = pca_real.components_.squeeze()
         
         pca_imag = RandomizedPCA(n_components=1)
         pca_imag.fit(Z.imag)
-        print 'pca_imag.components_.shape=',pca_imag.components_.shape
+        print ('pca_imag.components_.shape=',pca_imag.components_.shape)
         first_pc.imag = pca_imag.components_.squeeze()
 
         complex_pcs = np.array([first_pc])
@@ -671,8 +673,8 @@ def coherency(s1, s2, lags, plot=False, window_fraction=None, noise_floor_db=Non
 
     if np.sum(np.isnan(cf)) > 0:
         # print 'len(lags)=%d, len(s1)=%d, len(s2)=%d' % (len(lags), len(s1), len(s2))
-        print 'signals=',zip(s1, s2)
-        print 'shift_lags,cf=',zip(shift_lags, cf)
+        print ('signals=',zip(s1, s2))
+        print ('shift_lags,cf=',zip(shift_lags, cf))
         raise Exception("Nans in cf")
 
     assert np.sum(np.isnan(acf1)) == 0, "Nans in acf1"
@@ -713,7 +715,7 @@ def coherency(s1, s2, lags, plot=False, window_fraction=None, noise_floor_db=Non
     fi = freq >= 0
 
     if np.sum(np.abs(coh) > 1) > 0:
-        print 'Warning: coherency is > 1!'
+        print ('Warning: coherency is > 1!')
 
     if plot:
         plt.figure()

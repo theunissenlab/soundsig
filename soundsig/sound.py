@@ -1,4 +1,5 @@
-import copy
+from __future__ import print_function
+
 from copy import deepcopy
 import fnmatch
 from math import ceil
@@ -25,7 +26,7 @@ import matplotlib.mlab as mlab
 import colorsys
 from soundsig.signal import lowpass_filter, gaussian_window, correlation_function
 from soundsig.timefreq import gaussian_stft
-from soundsig.detect_peaks import *
+from soundsig.detect_peaks import detect_peaks
 
 
 class WavFile():
@@ -93,7 +94,7 @@ class WavFile():
         try:
             self.fundamental_freq = self.power_spectrum_f[peak_index]
         except IndexError:
-            print 'Could not identify fundamental frequency!'
+            print ('Could not identify fundamental frequency!')
             self.fundamental_freq = 0.0
 
         #compute log spectrogram
@@ -707,7 +708,7 @@ def sox_convert_to_mono(file_path):
     base_file_name = file_name[:-4]
     output_file_path = os.path.join(root_dir, '%s_mono.wav' % base_file_name)
     cmd = 'sox \"%s\" -c 1 \"%s\"' % (file_path, output_file_path)
-    print cmd
+    print (cmd)
     subprocess.call(cmd, shell=True)
 
 
@@ -815,12 +816,12 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
     nt = dt.size
     nf = df.size
     if spectrogram.shape[1] != nt and spectrogram.shape[0] != nf:   
-        print 'Error in mps. Expected  %d bands in frequency and %d points in time' % (nf, nt)
-        print 'Spectrogram had shape %d, %d' % spectrogram.shape
+        print ('Error in mps. Expected  %d bands in frequency and %d points in time' % (nf, nt))
+        print ('Spectrogram had shape %d, %d' % spectrogram.shape)
         return 0, 0, 0
         
     # Z-score the flattened spectrogram is Norm is True
-    sdata = copy.copy(spectrogram)
+    sdata = deepcopy(spectrogram)
     
     if Norm:
         maxdata = sdata.max()
@@ -843,7 +844,7 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
         nWindow += 1  # Make it odd size so that we have a symmetric window
         
     if nWindow < 64:
-        print 'Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window)
+        print ('Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window))
         return 0, 0, 0
         
     # Generate the Gaussian window
@@ -1012,7 +1013,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     soundLen = len(soundIn)
     nfilt = 1024
     if soundLen < 1024:
-        print 'Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen
+        print ('Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
         return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
 
     # high pass filter the signal
@@ -1566,7 +1567,7 @@ def inverse_real_spectrogram(spec, s_len,
     for i in range(iterations):
         phase_spec = spectrogram(estimated, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)[2]
         error = ((abs(spec_magnitude) - abs(phase_spec))**2).sum() / (abs(spec_magnitude)**2).sum()
-        print 'the error after iteration %d is %f' % (i+i, error)
+        print ('the error after iteration %d is %f' % (i+i, error))
         spec_angle = np.angle(phase_spec)
         estimated_spec = spec_magnitude * np.exp(1j*spec_angle)
         estimated = inverse_spectrogram(estimated_spec, s_len, sample_rate, spec_sample_rate, freq_spacing, min_freq, max_freq, nstd, log=False)
