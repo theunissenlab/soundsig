@@ -12,7 +12,8 @@ The package has routines to perform signal analysis on time series and sond wave
 The biosound class is used to represent a biological sound (natural sound) with multiple feature spaces.
 
 # INSTALLATION
-Coming soon!
+You can download from github or pip install:
+pip install soundsig
 
 # DOCUMENTATION and TUTORIALS
 Coming soon!
