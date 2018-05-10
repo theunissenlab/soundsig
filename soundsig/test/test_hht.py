@@ -5,7 +5,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from lasp.hht import HHT
+from soundsig.hht import HHT
 
 
 class TestHHT(unittest.TestCase):

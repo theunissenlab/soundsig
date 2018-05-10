@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import time
 
 import numpy as np
@@ -110,7 +112,7 @@ class ModelCoherenceAnalyzer(object):
         """
 
         if len(spike_trials_by_stim) != len(preds_by_stim):
-            print '# of stims for spike trials should equal # of predictions'
+            print('# of stims for spike trials should equal # of predictions')
             return
 
         psth_lens = np.array([len(pred) for pred in preds_by_stim])
@@ -296,6 +298,7 @@ def compute_coherence_model_performance(spike_trials_by_stim, psth_prediction, b
 def compute_coherence_original(s1, s2, sample_rate, bandwidth, jackknife=False, tanh_transform=False):
     """
         An implementation of computing the coherence. Don't use this.
+        TODO (kevin): What is this???
     """
 
     minlen = min(len(s1), len(s2))
@@ -303,13 +306,13 @@ def compute_coherence_original(s1, s2, sample_rate, bandwidth, jackknife=False, 
         s1 = s1[:minlen]
         s2 = s2[:minlen]
 
-    window_length = len(s1) / sample_rate
+    window_length = len(s1) / sample_rate  # TODO (kevin): should this be integer or float?
     window_length_bins = int(window_length * sample_rate)
 
     #compute DPSS tapers for signals
     NW = int(window_length*bandwidth)
     K = 2*NW - 1
-    print 'compute_coherence: NW=%d, K=%d' % (NW, K)
+    print('compute_coherence: NW=%d, K=%d' % (NW, K))
     tapers,eigs = ntalg.dpss_windows(window_length_bins, NW, K)
 
     njn = len(eigs)
@@ -360,8 +363,8 @@ def compute_coherence_original(s1, s2, sample_rate, bandwidth, jackknife=False, 
 
     #compute frequencies
     sampint = 1.0 / sample_rate
-    L = minlen / 2 + 1
-    freq = np.linspace(0, 1 / (2 * sampint), L)
+    L = minlen // 2 + 1
+    freq = np.linspace(0, 1.0 / (2.0 * sampint), L)
 
     #compute upper and lower bounds
     cmean = coherence_mean
@@ -410,18 +413,18 @@ def compute_mtcoherence(s1, s2, sample_rate, window_size, bandwidth=15.0, chunk_
     #compute DPSS tapers for signals
     NW = int(window_size*bandwidth)
     K = 2*NW - 1
-    #print 'compute_coherence: NW=%d, K=%d' % (NW, K)
+    #print('compute_coherence: NW=%d, K=%d' % (NW, K))
     tapers,eigs = ntalg.dpss_windows(sample_length_bins, NW, K)
     if debug:
-        print '[compute_coherence] bandwidth=%0.1f, # of tapers: %d' % (bandwidth, len(eigs))
-        print eigs
+        print('[compute_coherence] bandwidth=%0.1f, # of tapers: %d' % (bandwidth, len(eigs)))
+        print(eigs)
 
     #break signal into chunks and estimate coherence for each chunk
     nchunks = int(np.floor(len(s1) / float(sample_length_bins)))
     nleft = len(s1) % sample_length_bins
     if nleft > 0:
         nchunks += 1
-    #print 'sample_length_bins=%d, # of chunks:%d, # samples in last chunk: %d' % (sample_length_bins, nchunks, nleft)
+    #print('sample_length_bins=%d, # of chunks:%d, # samples in last chunk: %d' % (sample_length_bins, nchunks, nleft))
     coherence_estimates = list()
     for k in range(nchunks):
         s = k*sample_length_bins
@@ -477,8 +480,8 @@ def compute_mtcoherence(s1, s2, sample_rate, window_size, bandwidth=15.0, chunk_
 
     #compute frequencies
     sampint = 1.0 / sample_rate
-    L = sample_length_bins / 2 + 1
-    freq = np.linspace(0, 1 / (2 * sampint), L)
+    L = sample_length_bins // 2 + 1
+    freq = np.linspace(0, 1.0 / (2.0 * sampint), L)
 
     #compute upper and lower bounds
     coherence_lower = coherence_mean - 2*np.sqrt(coherence_variance)
@@ -513,7 +516,7 @@ def compute_freq_cutoff_and_nmi(freq, sample_rate, coherence_mean, coherence_low
         freq_cutoff = freq[freq_cutoff_index]
     else:
         freq_cutoff_index = max(np.where(freq <= freq_cutoff)[0])
-        print freq_cutoff_index
+        print(freq_cutoff_index)
 
     #compute normalized mutual information
     df = freq[1] - freq[0]
@@ -634,7 +637,7 @@ def coherence_jn(s1, s2, sample_rate, window_length, increment, min_freq=0, max_
         coherency = fftshift(coherency.real)
 
         dt = 1. / sample_rate
-        hc = (len(coherency) - 1) / 2
+        hc = (len(coherency) - 1) // 2
         coherency_t = np.arange(-hc, hc+1, 1)*dt
 
         """
@@ -679,19 +682,19 @@ def compute_coherence_from_timefreq(tf1, tf2, sample_rate, window_size, gauss_wi
     del tf1_conj
     del tf2_conj
 
-    # print 'len(s1)=%d, sample_rate=%0.2f, increment=%0.6f, window_size=%0.3f' % (len(s1), self.sample_rate, increment, window_size)
+    # print('len(s1)=%d, sample_rate=%0.2f, increment=%0.6f, window_size=%0.3f' % (len(s1), self.sample_rate, increment, window_size))
 
     # nwinlen = max(np.unique(windows[:, 2] - windows[:, 1]))
     nwinlen = int(sample_rate*window_size)
 
-    # print 'nwindows=%d, nwinlen=%d' % (len(windows), nwinlen)
+    # print('nwindows=%d, nwinlen=%d' % (len(windows), nwinlen))
     # generate a normalized window for computing the weighted mean around a point in time
     if gauss_window:
         gauss_t, average_window = gaussian_window(nwinlen, nstd)
         average_window /= np.abs(average_window).sum()
     else:
         average_window = np.ones(nwinlen) / float(nwinlen)
-        # print 'len(average_window)=%d, average_window.sum()=%0.6f' % (len(average_window), average_window.sum())
+        # print('len(average_window)=%d, average_window.sum()=%0.6f' % (len(average_window), average_window.sum()))
 
     nfreqs = tf1.shape[0]
     # compute the coherence at each frequency
@@ -747,14 +750,14 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
     nwinlen = int(sample_rate*window_size)
     if nwinlen % 2 == 0:
         nwinlen += 1
-    hnwinlen = nwinlen / 2
+    hnwinlen = nwinlen // 2
 
     #compute increment in number of samples
     slen = len(s1)
     nincrement = int(sample_rate*increment)
 
     #compute number of windows
-    nwindows = slen / nincrement
+    nwindows = slen // nincrement
 
     #get frequency axis values by computing coherence between dummy slice
     win1 = np.zeros([nwinlen])
@@ -770,11 +773,11 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
         timefreq_floor = np.zeros([len(freq), nwindows])
 
     if debug:
-        print '[cross_coherence] length=%0.3f, slen=%d, window_size=%0.3f, increment=%0.3f, bandwidth=%0.1f, nwindows=%d' % \
-              (slen/sample_rate, slen, window_size, increment, bandwidth, nwindows)
+        print('[cross_coherence] length=%0.3f, slen=%d, window_size=%0.3f, increment=%0.3f, bandwidth=%0.1f, nwindows=%d' %
+              (slen/sample_rate, slen, window_size, increment, bandwidth, nwindows))
 
     #compute the coherence for each window
-    #print 'nwinlen=%d, hnwinlen=%d, nwindows=%d' % (nwinlen, hnwinlen, nwindows)
+    #print('nwinlen=%d, hnwinlen=%d, nwindows=%d' % (nwinlen, hnwinlen, nwindows))
     for k in range(nwindows):
         if debug:
             stime = time.time()
@@ -799,7 +802,7 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
         win2[:] = 0.0
         win1[sii:eii] = s1[si:ei]
         win2[sii:eii] = s2[si:ei]
-        #print '(%0.2f, %0.2f, %0.2f), s1sum=%0.0f, s2sum=%0.0f, k=%d, center=%d, si=%d, ei=%d, sii=%d, eii=%d' % \
+        #print('(%0.2f, %0.2f, %0.2f), s1sum=%0.0f, s2sum=%0.0f, k=%d, center=%d, si=%d, ei=%d, sii=%d, eii=%d' % \)
         #      ((center-hnwinlen)/sample_rate, (center+hnwinlen+1)/sample_rate, center/sample_rate, s1sum, s2sum, k, center, si, ei, sii, eii)
 
         #compute the coherence
@@ -809,7 +812,7 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
             total_time = 0.0
             etime = time.time() - stime
             total_time += etime
-            print '\twindow %d: time = %0.2fs' % (k, etime)
+            print('\twindow %d: time = %0.2fs' % (k, etime))
 
         #compute the noise floor
         if noise_floor:
@@ -828,7 +831,7 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
                 w2si = w2center - hnwinlen
                 w2ei = w2center + hnwinlen + 1
                 win2_shift = s2[w2si:w2ei]
-                #print 'len(s2)=%d, win2_shift_index=%d, w2si=%d, w2ei=%d, len(win1)=%d, len(win2_shift)=%d' % \
+                #print('len(s2)=%d, win2_shift_index=%d, w2si=%d, w2ei=%d, len(win1)=%d, len(win2_shift)=%d' % \)
                 #      (len(s2), win2_shift_index, w2si, w2ei, len(win1), len(win2_shift))
                 cdata1 = compute_mtcoherence(win1, win2_shift, sample_rate, window_size=window_size, bandwidth=bandwidth)
                 csum += cdata1.coherence
@@ -841,7 +844,7 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
                 w1si = w1center - hnwinlen
                 w1ei = w1center + hnwinlen + 1
                 win1_shift = s1[w1si:w1ei]
-                #print 'nwindows=%d, len(s1)=%d, win1_shift_index=%d, w1si=%d, w1ei=%d, len(win2)=%d, len(win1_shift)=%d' % \
+                #print('nwindows=%d, len(s1)=%d, win1_shift_index=%d, w1si=%d, w1ei=%d, len(win2)=%d, len(win1_shift)=%d' % \)
                 #      (nwindows, len(s1), win1_shift_index, w1si, w1ei, len(win2), len(win1_shift))
                 cdata2 = compute_mtcoherence(win2, win1_shift, sample_rate, window_size=window_size, bandwidth=bandwidth)
                 csum += cdata2.coherence
@@ -849,13 +852,13 @@ def mt_cross_coherence(s1, s2, sample_rate, window_size=5.0, increment=1.0, band
                 if debug:
                     etime = time.time() - stime
                     total_time += etime
-                    print '\t\tnoise trial %d: time = %0.2fs' % (m, etime)
+                    print('\t\tnoise trial %d: time = %0.2fs' % (m, etime))
 
-            timefreq_floor[:, k] = csum / (2*num_noise_trials)
+            timefreq_floor[:, k] = csum / (2.0*num_noise_trials)
 
         if debug:
-            print '\tTotal time for window %d: %0.2fs' % (k, total_time)
-            print '\tExpected total time for all iterations: %0.2f min' % (total_time*nwindows / 60.0)
+            print('\tTotal time for window %d: %0.2fs' % (k, total_time))
+            print('\tExpected total time for all iterations: %0.2f min' % (total_time*nwindows / 60.0))
 
     t = np.arange(nwindows)*increment
     if noise_floor:

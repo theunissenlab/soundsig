@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 import operator
 from matplotlib import patches
@@ -33,8 +35,8 @@ def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=N
                 row = sp % nrows
                 col = int(float(sp) / nrows)
                 new_index = page_offset + row*ncols + col
-            print 'nsp=%d, k=%d, sp=%d, page_offset=%d, row=%d, col=%d, new_index=%d' % \
-                  (len(the_data_list), k, sp, page_offset, row, col, new_index)
+            print('nsp=%d, k=%d, sp=%d, page_offset=%d, row=%d, col=%d, new_index=%d' %
+                  (len(the_data_list), k, sp, page_offset, row, col, new_index))
             data_list[new_index] = the_data_list[k]
 
     for pdata in data_list:
@@ -103,9 +105,9 @@ def plot_pairwise_analysis(data_mat, feature_columns, dependent_column, column_n
     corr_list = [(column_names[k], np.abs(Cy[k]), Cy[k]) for k in range(len(column_names)-1)]
     corr_list.sort(key=operator.itemgetter(1), reverse=True)
 
-    print 'Correlations  with %s' % column_names[-1]
+    print('Correlations  with %s' % column_names[-1])
     for cname,abscorr,corr in corr_list:
-        print '\t%s: %0.6f' % (cname, corr)
+        print('\t%s: %0.6f' % (cname, corr))
 
     fig = plt.figure()
     plt.subplots_adjust(top=0.99, bottom=0.15, left=0.15)

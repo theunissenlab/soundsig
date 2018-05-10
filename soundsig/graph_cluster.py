@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 
 import numpy as np
@@ -36,7 +38,7 @@ class EigenvectorModularity(object):
             communities = list()
             get_communities_from_dendrogram(self.dendrogram, communities, min_size=min_size)
             Qfinal = compute_modularity_from_matrix(self.g, self.B, communities)
-            print 'Final Modularity: %0.3f' % Qfinal
+            print('Final Modularity: %0.3f' % Qfinal)
             return communities
 
         #construct dendrogram that contains graph splits, leaves are communities
@@ -54,7 +56,7 @@ class EigenvectorModularity(object):
         sg1,sg2,Q = eigenvector_partition(self.g, self.B, self.is_directed, self.heuristic_swap)
 
         if len(sg1) == 0 or len(sg2) == 0:
-            print 'No initial partition found!'
+            print('No initial partition found!')
             return [self.g.nodes()]
 
         #recursively find all the other partitions
@@ -66,7 +68,7 @@ class EigenvectorModularity(object):
         communities = list()
         get_communities_from_dendrogram(self.dendrogram, communities, min_size=min_size)
         Qfinal = compute_modularity_from_matrix(self.g, self.B, communities)
-        print 'Final Modularity: %0.3f' % Qfinal
+        print('Final Modularity: %0.3f' % Qfinal)
 
         return communities
 
@@ -288,7 +290,7 @@ def eigenvector_partition(g, B, is_directed=False, heuristic_swap=False):
 
     if heuristic_swap:
         #swap the community of each node to try and further maximize modularity in a fine-tuning process
-        print 'Heuristic Swap turned on, starting Q=%0.6f' % Q
+        print('Heuristic Swap turned on, starting Q=%0.6f' % Q)
         Qbest = Q
         Qdiff = 0.0
         sbest = s
@@ -311,7 +313,7 @@ def eigenvector_partition(g, B, is_directed=False, heuristic_swap=False):
                 #recompute the modularity
                 Qnew = np.dot(snew, np.dot(Bused, snew)) / (4*g.number_of_edges())
                 if Qnew > Qbest:
-                    print 'swapped node %d, Qold=%0.6f, Qnew=%0.6f' % (n, Qbest, Qnew)
+                    print('swapped node %d, Qold=%0.6f, Qnew=%0.6f' % (n, Qbest, Qnew))
                     #if we do better on modularity, keep this swap
                     Qdiff = Qbest - Qnew
                     Qbest = Qnew
@@ -587,7 +589,7 @@ def compute_affinity(g, weight_param='weight'):
         node_weights[k] = W[k, :].sum()
     znodes = (node_weights == 0.0)
     if znodes.sum() > 0:
-        print node_weights
+        print(node_weights)
         raise ValueError('Cannot compute affinity matrix for graph that has disconnected nodes, or whose weight sum is zero.')
 
     D = np.diag(node_weights)

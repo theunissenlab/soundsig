@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import unittest
 
 import numpy as np
@@ -6,9 +8,9 @@ import matplotlib.pyplot as plt
 
 import nitime.algorithms as ntalg
 
-from lasp.sound import plot_spectrogram
+from soundsig.sound import plot_spectrogram
 
-from lasp.timefreq import GaussianSpectrumEstimator,MultiTaperSpectrumEstimator,timefreq,AmplitudeReassignment,PhaseReassignment, \
+from soundsig.timefreq import GaussianSpectrumEstimator,MultiTaperSpectrumEstimator,timefreq,AmplitudeReassignment,PhaseReassignment, \
     WaveletSpectrumEstimator, power_spectrum_from_acf
 
 
@@ -181,7 +183,7 @@ def compare_timefreqs(s, sample_rate, win_sizes=[0.050, 0.100, 0.250, 0.500, 1.2
         increment = 1.0 / sample_rate
         for j,est in enumerate(estimators):
             t,freq,tf = timefreq(s, sample_rate, win_size, increment, est)
-            print 'freq=',freq
+            print('freq=',freq)
             ax = plt.subplot(len(win_sizes), len(estimators), spnum)
             plot_spectrogram(t, freq, np.abs(tf), ax=ax, colorbar=True, ticks=True)
             if k == 0:

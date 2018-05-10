@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import operator
 
 import numpy as np
@@ -47,7 +49,7 @@ class RadialBasis1D(object):
 
             i = (x >= start) & (x <= end)
             assert i.sum() > 1, "too few datapoints: start=%0.6f, end=%0.6f, i.sum()=%d" % (start, end, i.sum())
-            # print 'start=%0.6f, end=%0.6f, i.sum()=%d, bw=%0.6f' % (start, end, i.sum(), x[i].std(ddof=1))
+            # print('start=%0.6f, end=%0.6f, i.sum()=%d, bw=%0.6f' % (start, end, i.sum(), x[i].std(ddof=1)))
             self.bw[k] = x[i].std(ddof=1) / 1.
 
         # compute the basis representation of x
@@ -76,7 +78,7 @@ class RadialBasis1D(object):
                 sse = np.sum((ytest - ypred)**2)
                 r2 = 1. - (sse / sst)
 
-                # print 'Fold %d: r2=%0.2f' % (k, r2)
+                # print('Fold %d: r2=%0.2f' % (k, r2))
                 perfs.append({'r2':r2, 'w':rr.coef_, 'b':rr.intercept_})
 
             r2_mean = np.mean([d['r2'] for d in perfs])
@@ -94,14 +96,14 @@ class RadialBasis1D(object):
         self.b = model_perfs[0]['b']
 
         if verbose:
-            print 'RadialBasis1D: alpha=%0.6f, r2=%0.2f' % (self.alpha, self.r2)
+            print('RadialBasis1D: alpha=%0.6f, r2=%0.2f' % (self.alpha, self.r2))
             if self.alpha == max(alphas):
-                print 'RadialBasis1D WARNING: maximum alpha value encountered! Something might be wrong with your data.'
-                print 'x on range (%0.6f, %0.6f)' % (x.min(), x.max())
-                print 'centers='
-                print self.centers
-                print 'bw='
-                print self.bw
+                print('RadialBasis1D WARNING: maximum alpha value encountered! Something might be wrong with your data.')
+                print('x on range (%0.6f, %0.6f)' % (x.min(), x.max()))
+                print('centers=')
+                print(self.centers)
+                print('bw=')
+                print(self.bw)
                 self.plot(x)
                 plt.show()
 
@@ -150,7 +152,7 @@ def cubic_spline_basis(x, num_knots=3, return_knots=False, knots=None):
         assert knots.min() >= x.min()
         assert knots.max() <= x.max()
         if len(np.unique(knots)) != len(knots):
-            # print '[cubic_spline_basis] number of unique kernels is less than the degrees of freedom, trying wider knot spacing (q10, q50, q90)'
+            # print('[cubic_spline_basis] number of unique kernels is less than the degrees of freedom, trying wider knot spacing (q10, q50, q90)')
             knots = [np.percentile(x, 10), np.percentile(x, 50), np.percentile(x, 90)]
         assert len(np.unique(knots)) == len(knots), '# of unique kernels is less than the degrees of freedom!'
 

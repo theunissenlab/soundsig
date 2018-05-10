@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import unittest
 
 import numpy as np
@@ -5,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from lasp.quasirand import quasirand
+from soundsig.quasirand import quasirand
 
 
 class QausirandlTest(unittest.TestCase):
@@ -43,7 +45,7 @@ class QausirandlTest(unittest.TestCase):
         #ensure that all points lie on the surface of a sphere
         Rnorm = np.sqrt((R**2).sum(axis=0))
         for k in range(N):
-            print Rnorm[k]
+            print(Rnorm[k])
             assert (Rnorm[k] - 1.0) < 1e-6
 
         fig = plt.figure()

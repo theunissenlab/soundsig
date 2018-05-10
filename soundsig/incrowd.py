@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 import numpy as np
 import operator
@@ -6,12 +8,12 @@ import matplotlib.pyplot as plt
 try:
     import spams
 except:
-    print "Cannot import spams! You won't be able to optimize!"
+    print("Cannot import spams! You won't be able to optimize!")
 
 try:
     from cvxopt import matrix as cvxopt_matrix, solvers as cvxopt_solvers
 except:
-    print 'Cannot import cvxopt, you won\'t be able to use the quadratic dense solver!'
+    print('Cannot import cvxopt, you won\'t be able to use the quadratic dense solver!')
 
 import time
 
@@ -33,12 +35,12 @@ class SPAMSLassoSolver(object):
 
     def solve(self, A, y, x0, as_signs):
 
-        #print 'dense_solver: y.shape=',y.shape
-        #print 'dense_solver: A.shape=',A.shape
+        #print('dense_solver: y.shape=',y.shape)
+        #print('dense_solver: A.shape=',A.shape)
         fy = np.asfortranarray(y.reshape(len(y), 1))
         fA = np.asfortranarray(A)
-        #print 'fy.shape=',fy.shape
-        #print 'fA.shape=',fA.shape
+        #print('fy.shape=',fy.shape)
+        #print('fA.shape=',fA.shape)
         if not self.positive:
             xnew = spams.lasso(fy, fA, mode=2, lambda1=self.lambda1, lambda2=self.lambda2)
         else:
@@ -48,7 +50,7 @@ class SPAMSLassoSolver(object):
 
         xnew = np.array(xnew.todense()).reshape(x0.shape)
 
-        #print 'dense_solver: xnew.shape=',xnew.shape
+        #print('dense_solver: xnew.shape=',xnew.shape)
 
         return xnew
 
@@ -60,7 +62,7 @@ class CVXOPTQPSolver(object):
 
     def solve(self, A, y, x0, as_signs):
 
-        print 'cvxopt QP: # of params=%d' % A.shape[1]
+        print('cvxopt QP: # of params=%d' % A.shape[1])
         #flip sign of columns of A that have negative usefulness, a trick
         #Patrick Gill uses to halve the # of parameters for the QP solver
         A *= as_signs
@@ -76,7 +78,7 @@ class CVXOPTQPSolver(object):
         stime = time.time()
         sol = cvxopt_solvers.qp(H, f, Q, b, None, None, None, x0)
         etime = time.time() - stime
-        print 'QP solver took %d seconds' % int(etime)
+        print('QP solver took %d seconds' % int(etime))
 
         xnew = np.array(sol['x']).squeeze()
         #unflip elements of xnew
@@ -111,9 +113,9 @@ class InCrowd(object):
 
     def iterate(self):
 
-        print 'Active set size: %d' % len(self.active_set)
+        print('Active set size: %d' % len(self.active_set))
         if len(self.active_set) == 0 and self.num_iter > 0:
-            print 'Empty active set, converging!'
+            print('Empty active set, converging!')
             self.converged = True
             return
 
@@ -129,7 +131,7 @@ class InCrowd(object):
             ulist = [(self.inactive_set[k], np.abs(uval), uval) for k,uval in enumerate(u)]
             ulist.sort(key=operator.itemgetter(1), reverse=True)
             #for (ui, uabs, u) in ulist:
-            #    print (ui, uabs, u)
+            #    print( (ui, uabs, u))
             ulist = np.array(ulist)
 
             #get most useful elements to add to active set by thresholding using max_additions_fraction
@@ -139,8 +141,8 @@ class InCrowd(object):
             nzi = nzi[:num_to_use]
             new_active_indices = ulist[nzi, 0].astype('int')
             if len(nzi) > 0:
-                print 'Adding %d active elements' % len(nzi)
-            #print 'new_active_indices=',new_active_indices
+                print('Adding %d active elements' % len(nzi))
+            #print('new_active_indices=',new_active_indices)
 
             #record signs of new active set elements
             for nz in nzi:
@@ -155,19 +157,19 @@ class InCrowd(object):
                 new_inactive_set.remove(x_index)
                 self.active_set.append(x_index)
             self.inactive_set = new_inactive_set
-            #print 'Active set size: %d' % len(self.active_set)
+            #print('Active set size: %d' % len(self.active_set))
 
-        #print 'active_set=',self.active_set
-        #print 'inactive_set=',self.inactive_set
+        #print('active_set=',self.active_set)
+        #print('inactive_set=',self.inactive_set)
 
         #get submatrix of active components
         Asub = self.model.submatrix(self.active_set, include_bias=True)
         ysub = self.model.target()
         x0sub = np.concatenate([self.x[self.active_set], [self.model.bias]])
 
-        #print 'Asub.shape=',Asub.shape
-        #print 'ysub.shape=',ysub.shape
-        #print 'x0sub.shape=',x0sub.shape
+        #print('Asub.shape=',Asub.shape)
+        #print('ysub.shape=',ysub.shape)
+        #print('x0sub.shape=',x0sub.shape)
 
         #construct array of usefulness signs, used by the QP dense solver
         as_signs = []
@@ -180,11 +182,11 @@ class InCrowd(object):
         self.model.bias = xsub[-1]
         xsub = xsub[:-1]
 
-        #print 'type(xsub)=',type(xsub).__name__
+        #print('type(xsub)=',type(xsub).__name__)
 
         #threshold and set new x
         self.threshold_xsub(xsub)
-        #print 'thresholded xsub=',xsub
+        #print('thresholded xsub=',xsub)
         self.x[self.active_set] = xsub
 
         #kick zeros out of active set
@@ -197,18 +199,18 @@ class InCrowd(object):
             del self.active_set_signs[actual_index]
 
         if len(zi) > 0:
-            print 'Removing %d elements' % len(zi)
+            print('Removing %d elements' % len(zi))
 
         self.active_set = new_active_set
 
         #check for convergence
         if self.max_additions_fraction == 0.0:
-            print 'Threshold is 1.0, converging.'
+            print('Threshold is 1.0, converging.')
             self.converged = True
         else:
             if self.num_iter > 0 and len(self.active_set) == len(self.last_active_set):
                 if len(np.setdiff1d(self.active_set, self.last_active_set)) == 0:
-                    print 'Active set has not changed, converging!'
+                    print('Active set has not changed, converging!')
                     self.converged = True
 
         self.num_iter += 1
@@ -274,9 +276,9 @@ class FullInCrowdModel(InCrowdModel):
 
     def residual(self, x):
         yhat = np.dot(self.A, x)
-        #print 'yhat=',yhat
+        #print('yhat=',yhat)
         r = self.y - yhat
-        #print 'r=',r
+        #print('r=',r)
         return r
 
 
@@ -361,12 +363,12 @@ class ConvolutionalInCrowdModel(InCrowdModel):
 
         #compute the lag index corresponding to each parameter in the reshaped (flattened) filter
         lag_indices = all_indices % d
-        #print 'lag_indices=',lag_indices
+        #print('lag_indices=',lag_indices)
 
         for k,i in enumerate(indices):
             #get lag and channel corresponding to this index
             lag_index = lag_indices[i]
-            #print 'k=%d, i=%d, lag_index=%d' % (k, i, lag_index)
+            #print('k=%d, i=%d, lag_index=%d' % (k, i, lag_index))
             lag = self.time_lags[lag_index]
             channel_to_get = channel_indices[i]
 
@@ -417,19 +419,19 @@ def fast_conv(input, filter, time_lags, bias=0.0):
 
     input_T = np.matrix(input)
     nsamps = input_T.shape[0]
-    #print 'input_T.shape=',input_T.shape
-    #print 'time_lags.shape=',time_lags.shape
-    #print 'filter.shape=',filter.shape
+    #print('input_T.shape=',input_T.shape)
+    #print('time_lags.shape=',time_lags.shape)
+    #print('filter.shape=',filter.shape)
 
     a = np.zeros( [nsamps, 1] )
     for k,ti in enumerate(time_lags):
-        #print '\tti=%d' % ti
-        #print '\tk=%d, filter[:, k].shape=' % k,filter[:, k].shape
+        #print('\tti=%d' % ti)
+        #print('\tk=%d, filter[:, k].shape=' % k,filter[:, k].shape)
         at = input_T * filter[:, k].reshape(filter.shape[0], 1)
         if ti >= 0:
             if ti > 0:
                 at = at[:-ti]
-            #print '\tat.shape=',at.shape
+            #print('\tat.shape=',at.shape)
             a[ti:] += at
         else:
             offset = ti % nsamps

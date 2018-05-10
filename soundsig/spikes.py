@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import operator
 
 import numpy as np
@@ -91,7 +93,7 @@ def simulate_gamma(psth, trials, duration, num_trials=20):
             #get rescaled time as difference in cumulative intensity
             ui = csum[ti_index] - csum[tj_index]
             if ui < 0.0:
-                print 'ui < 0! ui=%0.6f, csum[ti]=%0.6f, csum[tj]=%0.6f' % (ui, csum[ti_index], csum[tj_index])
+                print('ui < 0! ui=%0.6f, csum[ti]=%0.6f, csum[tj]=%0.6f' % (ui, csum[ti_index], csum[tj_index]))
             else:
                 rs_isis.append(ui)
     rs_isis = np.array(rs_isis)
@@ -100,7 +102,7 @@ def simulate_gamma(psth, trials, duration, num_trials=20):
     #fit a gamma distribution to the rescaled ISIs
     gamma_alpha,gamma_loc,gamma_beta = gamma.fit(rs_isis)
     gamma_pdf = gamma.pdf(rs_isi_x, gamma_alpha, loc=gamma_loc, scale=gamma_beta)
-    print 'Rescaled ISI Gamma Fit Params: alpha=%0.3f, beta=%0.3f, loc=%0.3f' % (gamma_alpha, gamma_beta, gamma_loc)
+    print('Rescaled ISI Gamma Fit Params: alpha=%0.3f, beta=%0.3f, loc=%0.3f' % (gamma_alpha, gamma_beta, gamma_loc))
 
     #simulate new trials using rescaled ISIs
     new_trials = []
@@ -345,7 +347,7 @@ def spike_envelope(spike_trains, start_time, duration, bin_size=1e-3, win_size=3
 
     if thresh_percentile is not None:
         thresh = np.percentile(env, thresh_percentile)
-        print 'spike_envelope threshold: %f' % thresh
+        print('spike_envelope threshold: %f' % thresh)
         env[env < thresh] = 0.0
 
     return env

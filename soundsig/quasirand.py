@@ -1,6 +1,8 @@
 """
 Generate quasi-random numbers using Halton, Hammerseley, and Sobol sequences.
 """
+from __future__ import division, print_function
+
 import numpy as np
 
 from soundsig.thirdparty.sobol_lib import i4_sobol_generate

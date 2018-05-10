@@ -4,6 +4,7 @@ Created on Wed Sep 14 22:16:23 2016
 
 downloaded from http://scipy-cookbook.readthedocs.io/items/Matplotlib_HintonDiagrams.html?highlight=hinton%20diagrams
 """
+from __future__ import division, print_function
 
 import numpy as N
 import pylab as P

@@ -1,9 +1,10 @@
+from __future__ import division, print_function
 
 import numpy as np
 
 import matplotlib.pyplot as plt
 
-from lasp.incrowd import ConvolutionalInCrowdModel, InCrowd, fast_conv
+from soundsig.incrowd import ConvolutionalInCrowdModel, InCrowd, fast_conv
 
 def test2():
     #construct sample input matrix
@@ -26,7 +27,7 @@ def test2():
     real_filter /= np.abs(real_filter).max()
 
     num_nonzero = (np.abs(real_filter) == 0.0).sum()
-    print '# of nonzero elements in filter: %d out of %d' % (num_nonzero, len(time_lags)*num_channels)
+    print('# of nonzero elements in filter: %d out of %d' % (num_nonzero, len(time_lags)*num_channels))
 
     #construct sample output using convolution
     output = fast_conv(stim, real_filter, time_lags)
@@ -49,7 +50,7 @@ def test2():
         if ico.converged:
             break
         ico.iterate()
-        print 'Iteration %d, err=%0.9f' % (k+1, (cic_model.residual(ico.x)**2).sum())
+        print('Iteration %d, err=%0.9f' % (k+1, (cic_model.residual(ico.x)**2).sum()))
 
     #get the predicted filter, make cic_model reshape the parameters into what we would expect to see
     predicted_filter = cic_model.get_filter(ico.x)
@@ -98,7 +99,7 @@ def test1():
     real_filter /= np.abs(real_filter).max()
 
     num_nonzero = (np.abs(real_filter) == 0.0).sum()
-    print '# of nonzero elements in filter: %d out of %d' % (num_nonzero, len(time_lags)*num_channels)
+    print('# of nonzero elements in filter: %d out of %d' % (num_nonzero, len(time_lags)*num_channels))
 
     #construct sample output using convolution
     output = fast_conv(stim, real_filter, time_lags)
@@ -121,7 +122,7 @@ def test1():
         if ico.converged:
             break
         ico.iterate()
-        print 'Iteration %d, err=%0.9f' % (k+1, (cic_model.residual(ico.x)**2).sum())
+        print('Iteration %d, err=%0.9f' % (k+1, (cic_model.residual(ico.x)**2).sum()))
 
     #get the predicted filter, make cic_model reshape the parameters into what we would expect to see
     predicted_filter = cic_model.get_filter(ico.x)
@@ -169,7 +170,7 @@ def test_conv(N=1000, M=10):
     #print list(ydiff)
 
     total_diff = np.abs(ydiff).sum()
-    print 'total diff for causal:%f' % total_diff
+    print('total diff for causal:%f' % total_diff)
 
     assert total_diff < 1e-8
 
@@ -186,7 +187,7 @@ def test_conv(N=1000, M=10):
     #print list(ydiff)
 
     total_diff = np.abs(ydiff).sum()
-    print 'total diff for acausal:%f' % total_diff
+    print('total diff for acausal:%f' % total_diff)
 
     assert total_diff < 1e-8
 
@@ -203,7 +204,7 @@ def test_conv(N=1000, M=10):
     #print list(ydiff)
 
     total_diff = np.abs(ydiff).sum()
-    print 'total diff for non-contiguous:%f' % total_diff
+    print('total diff for non-contiguous:%f' % total_diff)
 
     assert total_diff < 1e-8
 

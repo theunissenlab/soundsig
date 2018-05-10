@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 import numpy as np
 from soundsig.incrowd import ConvolutionalInCrowdModel, fast_conv, fast_conv_grouped
@@ -145,8 +147,8 @@ class ThresholdGradientDescent(object):
                 slope /= np.abs(np.array(self.errors[-self.num_iters_for_slope:]).mean())
                 self.slope = slope
                 if self.slope > self.slope_threshold:
-                    print '[ThresholdGradientDescent] cross slope threshold on iteration %d, slope=%f' % \
-                          (self.iter+1, self.slope)
+                    print('[ThresholdGradientDescent] cross slope threshold on iteration %d, slope=%f' %
+                          (self.iter+1, self.slope))
                     self.converged = True
 
                 if e < self.best_err:

@@ -1,6 +1,6 @@
 # Get ready for python 3
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     myPrior = np.ones(nClasses)*(1.0/nClasses)  
 
     # Perform a PCA for dimensionality reduction so that the covariance matrix can be fitted.
-    nDmax = int(np.fix(np.sqrt(nX/5)))
+    nDmax = int(np.fix(np.sqrt(nX//5)))
     if nDmax < nD:
         print ('Warning: Insufficient data for', nD, 'parameters. PCA projection to', nDmax, 'dimensions.' )
     nDmax = min(nD, nDmax)
