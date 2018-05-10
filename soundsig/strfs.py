@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import time
 import numpy as np
 from sklearn.linear_model import Ridge
@@ -163,14 +165,14 @@ def fit_strf_lasso(input, output, lags, lambda1=1.0, lambda2=1.0, num_threads=-1
     try:
         import spams
     except ImportError:
-        print 'Cannot import spams! No lasso for you...'
+        print('Cannot import spams! No lasso for you...')
         return
 
     #convert the input into a toeplitz-like matrix
     stime = time.time()
     A = make_toeplitz(input, lags, include_bias=True, fortran_style=True)
     etime = time.time() - stime
-    print '[fit_strf_lasso] Time to make Toeplitz matrix: %d seconds' % etime
+    print('[fit_strf_lasso] Time to make Toeplitz matrix: %d seconds' % etime)
 
     fy = np.asfortranarray(output.reshape(len(output), 1))
     #print 'fy.shape=',fy.shape
@@ -180,7 +182,7 @@ def fit_strf_lasso(input, output, lags, lambda1=1.0, lambda2=1.0, num_threads=-1
     stime = time.time()
     fit_params = spams.lasso(fy, A, mode=2, lambda1=lambda1, lambda2=lambda2, numThreads=num_threads)
     etime = time.time() - stime
-    print '[fit_strf_lasso] Time to fit STRF: %d seconds' % etime
+    print('[fit_strf_lasso] Time to fit STRF: %d seconds' % etime)
 
     #reshape the STRF so that it makes sense
     nt = input.shape[0]
@@ -214,12 +216,12 @@ def fit_strf_ridge(input, output, lags, alpha=1.0, verbose=False):
         nt,nf = input.shape
         nelems = nt*nf*len(lags)
         mem = (nelems*8.) / 1024.**2
-        print '[fit_strf_ridge] estimated size of toeplitz matrix: %d MB' % mem
+        print('[fit_strf_ridge] estimated size of toeplitz matrix: %d MB' % mem)
     stime = time.time()
     A = make_toeplitz(input, lags, include_bias=False)
     etime = time.time() - stime
     if verbose:
-        print '[fit_strf_ridge] Time to make Toeplitz matrix: %d seconds' % etime
+        print('[fit_strf_ridge] Time to make Toeplitz matrix: %d seconds' % etime)
 
     #fit the STRF
     stime = time.time()
@@ -229,7 +231,7 @@ def fit_strf_ridge(input, output, lags, alpha=1.0, verbose=False):
     rr.fit(A, output)
     etime = time.time() - stime
     if verbose:
-        print '[fit_strf_ridge] Time to fit STRF: %d seconds' % etime
+        print('[fit_strf_ridge] Time to fit STRF: %d seconds' % etime)
 
     #reshape the STRF so that it makes sense
     nt = input.shape[0]

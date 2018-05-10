@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lasp.coherence import coherence_jn
-from lasp.signal import lowpass_filter
+from soundsig.coherence import coherence_jn
+from soundsig.signal import lowpass_filter
 
 # Make two gaussian signals
 sample_rate = 1000.0

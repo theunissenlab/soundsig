@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import copy
 
 import numpy as np
@@ -230,8 +232,8 @@ class HHT(object):
                     stop = True
             if iter > self.sift_max_iter:
                 stop = True
-            print 'Iter %d: len(mini)=%d, len(maxi=%d), imf.mean()=%0.6f, alpha=%0.2f' % (iter, len(mini), len(maxi), imf.mean(), alpha)
-            #print 'num_extrema=',num_extrema
+            print('Iter %d: len(mini)=%d, len(maxi=%d), imf.mean()=%0.6f, alpha=%0.2f' % (iter, len(mini), len(maxi), imf.mean(), alpha))
+            #print('num_extrema=',num_extrema)
             iter += 1
         return imf
 

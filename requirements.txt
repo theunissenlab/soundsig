@@ -1,0 +1,10 @@
+h5py==2.7.0
+matplotlib==2.0.2
+mne==0.14.1
+nitime==0.7
+numpy==1.13.0
+pandas==0.20.2
+scipy==0.19.0
+scikit-learn==0.18.1
+scikits.talkbox==0.2.5
+tables==3.4.2

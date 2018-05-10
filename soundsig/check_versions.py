@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import importlib
 import operator
 
@@ -16,10 +18,10 @@ for pkg in packages:
     except ImportError:
         missing.append(pkg)
 
-print 'Missing Packages: %s' % ','.join(missing)
-print ''
-print 'Installed Packages:'
+print('Missing Packages: %s' % ','.join(missing))
+print('')
+print('Installed Packages:')
 
 for pkg,version in sorted(versions.items(), key=operator.itemgetter(0)):
-    print '%s: %s' % (pkg, version)
+    print('%s: %s' % (pkg, version))
 

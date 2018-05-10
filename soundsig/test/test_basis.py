@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lasp.basis import RadialBasis1D
+from soundsig.basis import RadialBasis1D
 
 
 class TestBasis(TestCase):

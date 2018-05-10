@@ -1,10 +1,12 @@
+from __future__ import print_function
+
 from unittest import TestCase
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lasp.discrete_process import DiscreteProcessEstimator
-from lasp.colormaps import magma
+from soundsig.discrete_process import DiscreteProcessEstimator
+from soundsig.colormaps import magma
 
 
 class DiscreteProcessTest(TestCase):
@@ -46,23 +48,23 @@ class DiscreteProcessTest(TestCase):
                     ii = np.where(cdf >= r)[0]
                     i = np.min(ii)
                 except ValueError:
-                    print cdf
-                    print ii
-                    print r
+                    print(cdf)
+                    print(ii)
+                    print(r)
                     raise
                 s[k] = i + 1
                 next_event = ti + np.random.exponential(event_tau)
 
-        print 's.unique()=',np.unique(s)
+        print('s.unique()=',np.unique(s))
 
         num_events = np.sum(s > 0)
-        print '# of events: %d (%0.3f Hz)' % (num_events, num_events / duration)
+        print('# of events: %d (%0.3f Hz)' % (num_events, num_events / duration))
         p_empirical = np.zeros([ndim])
         for k in range(ndim):
             p_empirical[k] = np.sum(s == k+1)
         p_empirical /= p_empirical.sum()
-        print 'True distribution: %s' % str(pdf)
-        print 'Empirical distribution: %s' % str(p_empirical)
+        print('True distribution: %s' % str(pdf))
+        print('Empirical distribution: %s' % str(p_empirical))
 
         # estimate the distribution with a variety of time constants
         taus = [100e-3, 500e-3, 1.0, 5.0]
