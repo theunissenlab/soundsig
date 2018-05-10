@@ -363,7 +363,7 @@ class BioSound(object):
         plt.clf()
         # mngr = plt.get_current_fig_manager()
         # mngr.window.setGeometry(0, 260, 640, 545)
-
+        
         
         # The oscillogram
         plt.axes([0.1, 0.75, 0.85, 0.20])      

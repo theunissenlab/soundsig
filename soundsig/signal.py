@@ -45,7 +45,7 @@ def highpass_filter(s, sample_rate, cutoff_freq, filter_order=5, rescale=False):
         cutoff_freq: the cutoff frequency of the filter
         filter_order: the order of the filter...
 
-        Returns the low-pass filtered signal s.
+        Returns the high-pass filtered signal s.
     """
 
     #create a butterworth filter
