@@ -846,7 +846,7 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
         
     if nWindow < 64:
         print('Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window))
-        return 0, 0, 0
+        return np.asarray([]), np.asarray([]), np.asarray([])
         
     # Generate the Gaussian window
     gt, wg = gaussian_window(nWindow, 6)
