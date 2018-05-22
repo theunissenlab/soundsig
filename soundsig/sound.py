@@ -152,7 +152,7 @@ class BioSound(object):
     def __init__(self, soundWave=np.array(0.0), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
 
         self.sound = soundWave  # sound pressure waveform 
-        self.hashid = hashlib.md5(np.array_str(soundWave)).hexdigest()
+        self.hashid = hashlib.md5(np.array_str(soundWave).encode('utf-8')).hexdigest()
         self.samprate = float(fs) if isinstance(fs,int) else fs      # sampling rate
         self.emitter = emitter  # string for id of emitter
         self.type = calltype    # string for call type
