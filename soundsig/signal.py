@@ -24,6 +24,9 @@ def lowpass_filter(s, sample_rate, cutoff_freq, filter_order=5, rescale=False):
         Returns the low-pass filtered signal s.
     """
 
+    if s.ndim != 1:
+        raise ValueError("Can only filter 1D arrays.")
+        
     #create a butterworth filter
     nyq = sample_rate / 2.0
     b,a = filter_design.butter(filter_order, cutoff_freq / nyq)
@@ -49,6 +52,8 @@ def highpass_filter(s, sample_rate, cutoff_freq, filter_order=5, rescale=False):
 
         Returns the high-pass filtered signal s.
     """
+    if s.ndim != 1:
+        raise ValueError("Can only filter 1D arrays.")
 
     #create a butterworth filter
     nyq = sample_rate / 2.0
@@ -78,6 +83,8 @@ def bandpass_filter(s, sample_rate, low_freq, high_freq, filter_order=5, rescale
         Returns the bandpass filtered signal s.
     """
 
+    if s.ndim != 1:
+        raise ValueError("Can only filter 1D arrays.")
 
     #create a butterworth filter
     nyq = sample_rate / 2.0
