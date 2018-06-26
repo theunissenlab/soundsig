@@ -19,6 +19,8 @@ setup(
                       'mne',
                       'nitime',
                       'pandas',
-                      'scikits.talkbox',
-                      'scikit-learn' ]
+                      'scikit-learn'],
+    extras_require = {
+        ':python_version<="2.7"': ['scikits.talkbox']
+    }
 )

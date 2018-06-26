@@ -17,7 +17,11 @@ from scipy.io.wavfile import read as read_wavfile
 from scipy.fftpack import fft, ifft, fftfreq, fft2, ifft2, dct
 from scipy.signal import resample, firwin, filtfilt
 from scipy.optimize import leastsq
-# import scikits.talkbox as talkbox  # TODO (kevin): talkbox does not seem to be supported anymore, not python3  compatible
+try:
+    # TODO (kevin): talkbox not python3 compatible
+    import scikits.talkbox as talkbox
+except ImportError:
+    print("Warning: scikits.talkbox import failed")
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cmap
@@ -1148,7 +1152,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         soundWin2 = soundIn[tstart2:tend2]*w2[winstart2:windend2]
         
         # Apply LPC to get time-varying formants and one additional guess for the fundamental frequency
-
+        # TODO (kevin): replace this with librosa 
         A, E, K = talkbox.lpc(soundWin2, 8)    # 8 degree polynomial
         rts = np.roots(A)          # Find the roots of A
         rts = rts[np.imag(rts)>=0]  # Keep only half of them

@@ -16,17 +16,13 @@ def lowpass_filter(s, sample_rate, cutoff_freq, filter_order=5, rescale=False):
     """
         Lowpass filter a signal s, with sample rate sample_rate.
 
-        s: the signal
+        s: the signal (n_channels x n_timepoints)
         sample_rate: the sample rate in Hz of the signal
         cutoff_freq: the cutoff frequency of the filter
         filter_order: the order of the filter...
 
         Returns the low-pass filtered signal s.
     """
-
-    if s.ndim != 1:
-        raise ValueError("Can only filter 1D arrays.")
-        
     #create a butterworth filter
     nyq = sample_rate / 2.0
     b,a = filter_design.butter(filter_order, cutoff_freq / nyq)
@@ -45,16 +41,13 @@ def highpass_filter(s, sample_rate, cutoff_freq, filter_order=5, rescale=False):
     """
         Highpass filter a signal s, with sample rate sample_rate.
 
-        s: the signal
+        s: the signal (n_channels x n_timepoints)
         sample_rate: the sample rate in Hz of the signal
         cutoff_freq: the cutoff frequency of the filter
         filter_order: the order of the filter...
 
         Returns the high-pass filtered signal s.
     """
-    if s.ndim != 1:
-        raise ValueError("Can only filter 1D arrays.")
-
     #create a butterworth filter
     nyq = sample_rate / 2.0
     b,a = filter_design.butter(filter_order, cutoff_freq / nyq, btype='high')
@@ -74,7 +67,7 @@ def bandpass_filter(s, sample_rate, low_freq, high_freq, filter_order=5, rescale
     """
         Bandpass filter a signal s.
 
-        s: the signal
+        s: the signal (n_channels x n_timepoints)
         sample_rate: the sample rate in Hz of the signal
         low_freq: the lower cutoff frequency
         upper_freq: the upper cutoff frequency
@@ -82,10 +75,6 @@ def bandpass_filter(s, sample_rate, low_freq, high_freq, filter_order=5, rescale
 
         Returns the bandpass filtered signal s.
     """
-
-    if s.ndim != 1:
-        raise ValueError("Can only filter 1D arrays.")
-
     #create a butterworth filter
     nyq = sample_rate / 2.0
     f = np.array([low_freq, high_freq]) / nyq
