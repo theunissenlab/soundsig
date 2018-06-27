@@ -36,8 +36,8 @@ def hinton(W, maxWeight=None):
     P.fill(N.array([0,width,width,0]),N.array([0,0,height,height]),'gray')
     P.axis('off')
     P.axis('equal')
-    for x in xrange(width):
-        for y in xrange(height):
+    for x in range(width):
+        for y in range(height):
             _x = x+1
             _y = y+1
             w = W[y,x]
