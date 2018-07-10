@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'soundsig',
-    version = '1.0',
+    version = '1.1',
     packages = ['soundsig'],
     description = 'Sound and Signal Analysis Tools for Bioacousticians and Auditory Neurophysiologists',
     author = 'Frederic Theunissen',
@@ -19,8 +19,5 @@ setup(
                       'mne',
                       'nitime',
                       'pandas',
-                      'scikit-learn'],
-    extras_require = {
-        ':python_version<="2.7"': ['scikits.talkbox']
-    }
+                      'scikit-learn']
 )
