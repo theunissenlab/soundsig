@@ -20,7 +20,7 @@ Downloading the files will take seconds.
 
 # REQUIRES
 soundsig requires the python typical packages matplotlib, numpy, scikit-learn, h5py.  All of these will be automatically installed during the pip install. 
-The code has been tested only in Python 2.7 but should work (or with minor changes) in Python 3.
+The code was originally written for Python 2.7 but updated for Python 3.
 
 # TUTORIALS
 Tutorials come in the form of 4 Jupyter Notebooks that can be found at theunissenlab/BioSoundTutorials
