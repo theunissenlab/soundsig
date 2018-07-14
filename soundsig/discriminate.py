@@ -1,6 +1,3 @@
-# Get ready for python 3
-
-from __future__ import division, print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -177,6 +174,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         print()
         
     if plotFig:
+        dimVal = 0.8    # Overall diming of background so that points can be seen
         # Obtain fits in this rotated space for display purposes   
         ldaMod.fit(Xrr, yGood)    
         qdaMod.fit(Xrr, yGood)
@@ -214,8 +212,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             cWeight = yPredLDA[ix,:]                               # Prob for all classes
             cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
             # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses
-            XmcLDA[ix,:] = np.dot(cWinner, cClasses)
-            XmcLDA[ix,3] = cWeight.max()/maxLDA
+            XmcLDA[ix,:] = np.dot(cWinner*cWeight, cClasses)
+            XmcLDA[ix,3] = (cWeight.max()/maxLDA)*dimVal
     
         # Plot the surface of probability    
         plt.figure(facecolor='white', figsize=(10,4))
@@ -251,8 +249,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             cWeight = yPredQDA[ix,:]                               # Prob for all classes
             cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
             # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses
-            XmcQDA[ix,:] = np.dot(cWinner, cClasses)
-            XmcQDA[ix,3] = cWeight.max()/maxQDA
+            XmcQDA[ix,:] = np.dot(cWinner*cWeight, cClasses)
+            XmcQDA[ix,3] = (cWeight.max()/maxQDA)*dimVal
     
         # Plot the surface of probability  
 
@@ -286,8 +284,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             cWeight = yPredRF[ix,:]           # Prob for all classes
             cWinner = ((cWeight == cWeight.max()).astype('float')) # Winner takes all 
             # XmcLDA[ix,:] = np.dot(cWeight, cClasses)/nClasses  # Weighted colors does not work
-            XmcRF[ix,:] = np.dot(cWinner, cClasses)
-            XmcRF[ix,3] = cWeight.max()/maxRF
+            XmcRF[ix,:] = np.dot(cWinner*cWeight, cClasses)
+            XmcRF[ix,3] = (cWeight.max()/maxRF)*dimVal
     
     # Plot the surface of probability    
         plt.subplot(133)

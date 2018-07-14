@@ -16,6 +16,7 @@ import numpy as np
 from scipy.io.wavfile import read as read_wavfile
 from scipy.fftpack import fft, ifft, fftfreq, fft2, ifft2, dct
 from scipy.signal import resample, firwin, filtfilt
+from scipy.linalg import inv, toeplitz
 from scipy.optimize import leastsq
 
 
@@ -150,12 +151,13 @@ class BioSound(object):
     """ Class for representing a communication sound using multiple feature spaces"""
 
     def __init__(self, soundWave=np.array(0.0), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
+        # Note that all the fields are numpy arrays for saving to h5 files.
 
         self.sound = soundWave  # sound pressure waveform 
-        self.hashid = hashlib.md5(np.array_str(soundWave).encode('utf-8')).hexdigest()
+        self.hashid = np.string_(hashlib.md5(np.array_str(soundWave).encode('utf-8')).hexdigest())
         self.samprate = float(fs) if isinstance(fs,int) else fs      # sampling rate
-        self.emitter = emitter  # string for id of emitter
-        self.type = calltype    # string for call type
+        self.emitter = np.string_(emitter)  # string for id of emitter
+        self.type = np.string_(calltype)    # string for call type
         self.spectro = np.asarray([])    # Log spectrogram
         self.to = np.asarray([])         # Time scale for spectrogram
         self.fo = np.asarray([])         # Frequency scale for spectrogram
@@ -204,8 +206,7 @@ class BioSound(object):
         fid = h5py.File(fileName,'w')
         selfDict = vars(self)
         for varnames in selfDict:
-            if selfDict[varnames] is not None:
-                fid.create_dataset(varnames, data=np.array(selfDict[varnames]))
+            fid.create_dataset(varnames, data=selfDict[varnames])
             
         fid.close()
         
@@ -241,7 +242,7 @@ class BioSound(object):
                     break
                  
         # Find skewness, kurtosis and entropy for power spectrum below f_high
-        ind_fmax = mlab.find(Freqs > f_high)[0]
+        ind_fmax = np.where(Freqs > f_high)[0][0]
     
         # Description of spectral shape
         spectdata = Pxx[0:ind_fmax]
@@ -300,7 +301,7 @@ class BioSound(object):
         skewtime = skewtime/(stdtime**3)
         kurtosistime = np.sum(ampdata*(tdata-meantime)**4)
         kurtosistime = kurtosistime/(stdtime**4)
-        indpos = mlab.find(ampdata>0)
+        indpos = np.where(ampdata>0)[0]
         entropytime = -np.sum(ampdata[indpos]*np.log2(ampdata[indpos]))/np.log2(np.size(indpos))
         
         self.meantime = meantime   
@@ -836,11 +837,11 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
             
     # Find the number of spectrogram points in the gaussian window 
     if dt[-1] < window:
-        print('Warning in mps: window size is smaller or equal to spectrogram temporal extent.')
+        print('Warning in mps: Requested MPS window size is greater than spectrogram temporal extent.')
         print('mps will be calculate with windows of %d points or %s s' % (nt-1, dt[-1]) )
         nWindow = nt - 1
     else:
-        nWindow = mlab.find(dt>= window)[0]
+        nWindow = np.where(dt>= window)[0][0]
     if nWindow%2 == 0:
         nWindow += 1  # Make it odd size so that we have a symmetric window
         
@@ -855,7 +856,7 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
     
     # Pad the spectrogram with zeros.
     minSdata = sdata.min()
-    sdataZeros = np.ones((sdata.shape[0], (nWindow-1)/2)) * minSdata
+    sdataZeros = np.ones((sdata.shape[0], int((nWindow-1)/2))) * minSdata
     sdata = np.concatenate((sdataZeros, sdata, sdataZeros), axis = 1)
     
     if debugPlot:
@@ -908,7 +909,7 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
             plt.title('After')
             plt.show()
             plt.pause(1)
-            raw_input("Press Enter to continue...")
+            input("Press Enter to continue...")
             
         # Get the 2d FFT
         wf, wt, mps_pow, mps_phase = mtfft(wSpect, df, dt[0:tend-tstart])
@@ -979,7 +980,44 @@ def residualSyn(vars, x, realS):
     
     #if (sum(isinf(synS)) + sum(isnan(synS)))
     #    for i=1:npeaks
-    #        fprintf(1,'%f ', exp(b(i+1)))   
+    #        fprintf(1,'%f ', exp(b(i+1)))  
+    
+def lpc(signal, order):
+    """Compute the Linear Prediction Coefficients.
+
+    Return the order + 1 LPC coefficients for the signal. c = lpc(x, k) will
+    find the k+1 coefficients of a k order linear filter:
+
+      xp[n] = -c[1] * x[n-2] - ... - c[k-1] * x[n-k-1]
+
+    Such as the sum of the squared-error e[i] = xp[i] - x[i] is minimized.
+
+    Parameters
+    ----------
+    signal: array_like
+        input signal   
+    order : int
+        LPC order (the output will have order + 1 items)"""
+
+    order = int(order)
+
+    if signal.ndim > 1:
+        raise ValueError("Array of rank > 1 not supported yet")
+    if order > signal.size:
+        raise ValueError("Input signal must have a lenght >= lpc order")
+
+    if order > 0:
+        p = order + 1
+        r = np.zeros(p, signal.dtype)
+        # Number of non zero values in autocorrelation one needs for p LPC
+        # coefficients
+        nx = np.min([p, signal.size])
+        x = np.correlate(signal, signal, 'full')
+        r[:nx] = x[signal.size-1:signal.size+order]
+        phi = np.dot(inv(toeplitz(r[:-1])), -r[1:])
+        return np.concatenate(([1.], phi)), None, None
+    else:
+        return np.ones(1, dtype = signal.dtype), None, None
 
 
 def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5):
@@ -1149,7 +1187,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         
         # Apply LPC to get time-varying formants and one additional guess for the fundamental frequency
         # TODO (kevin): replace this with librosa 
-        # A, E, K = talkbox.lpc(soundWin2, 8)    # 8 degree polynomial
+        A, E, K = lpc(soundWin2, 8)    # 8 degree polynomial
         rts = np.roots(A)          # Find the roots of A
         rts = rts[np.imag(rts)>=0]  # Keep only half of them
         angz = np.arctan2(np.imag(rts),np.real(rts))
@@ -1176,20 +1214,20 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         # Calculate the auto-correlation
         lags = np.arange(-maxlags, maxlags+1, 1)
         autoCorr = correlation_function(soundWin, soundWin, lags)
-        ind0 = int(mlab.find(lags == 0))  # need to find lag zero index
+        ind0 = int(np.where(lags == 0)[0][0])  # need to find lag zero index
     
         # find peaks
         indPeaksCorr = detect_peaks(autoCorr, mph=autoCorr.max()/10.0)
     
         # Eliminate center peak and all peaks too close to middle    
-        indPeaksCorr = np.delete(indPeaksCorr,mlab.find( (indPeaksCorr-ind0) < fs/maxFund))
+        indPeaksCorr = np.delete(indPeaksCorr,np.where( (indPeaksCorr-ind0) < fs/maxFund)[0])
         pksCorr = autoCorr[indPeaksCorr]
     
         # Find max peak
         if len(pksCorr)==0:
             pitchSaliency = 0.1               # 0.1 goes with the detection of peaks greater than max/10
         else:
-            indIndMax = mlab.find(pksCorr == max(pksCorr))[0]
+            indIndMax = np.where(pksCorr == max(pksCorr))[0][0]
             indMax = indPeaksCorr[indIndMax]   
             fundCorrGuess = fs/abs(lags[indMax])
             pitchSaliency = autoCorr[indMax]/autoCorr[ind0]
@@ -1233,8 +1271,8 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
 
         # Calculate power spectrum and cepstrum
         Y = fft(soundWin, n=winLen+1)
-        f = (fs/2.0)*(np.array(range((winLen+1)/2+1), dtype=float)/float((winLen+1)//2))
-        fhigh = mlab.find(f >= highFc)[0]
+        f = (fs/2.0)*(np.array(range(int((winLen+1)/2+1)), dtype=float)/float((winLen+1)//2))
+        fhigh = np.where(f >= highFc)[0][0]
     
         powSound = 20.0*np.log10(np.abs(Y[0:(winLen+1)//2+1]))    # This is the power spectrum
         powSoundGood = powSound[0:fhigh]
@@ -1253,16 +1291,16 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         fCY = np.zeros(tCY.size)
         fCY[1:] = 1000.0/tCY[1:] # Corresponding fundamental frequency in Hz.
         fCY[0] = fs*2.0          # Nyquist limit not infinity
-        lowInd = mlab.find(fCY<lowFc)
+        lowInd = np.where(fCY<lowFc)[0]
         if lowInd.size > 0:
-            flowCY = mlab.find(fCY < lowFc)[0]
+            flowCY = np.where(fCY < lowFc)[0][0]
         else:
             flowCY = fCY.size
             
-        fhighCY = mlab.find(fCY < highFc)[0]
+        fhighCY = np.where(fCY < highFc)[0][0]
     
         # Find peak of Cepstrum
-        indPk = mlab.find(CY[fhighCY:flowCY] == max(CY[fhighCY:flowCY]))[-1]
+        indPk = np.where(CY[fhighCY:flowCY] == max(CY[fhighCY:flowCY]))[0][-1]
         indPk = fhighCY + indPk 
         fmass = 0
         mass = 0
@@ -1338,7 +1376,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
             maxPow2 = max(powLeft)
             f2 = 0
             if ( maxPow2 > maxPow*0.5):    # Possible second peak in central area as indicator of second voice.
-                f2 = f[mlab.find(powLeft == maxPow2)]
+                f2 = f[np.where(powLeft == maxPow2)[0][0]]
                 if ( f2 > 1000 and f2 < 4000):
                     if (pitchSaliency > minSaliency):
                         fund2[it] = f2
