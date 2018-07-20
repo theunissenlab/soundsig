@@ -8,7 +8,7 @@ from scipy.ndimage import convolve1d
 from scipy.signal import filter_design, resample, filtfilt, hann 
 import matplotlib.pyplot as plt
 import nitime.algorithms as ntalg
-from sklearn.decomposition import PCA,RandomizedPCA
+from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
 
 
@@ -292,12 +292,12 @@ def demodulate(Z, over_space=True, depth=1):
 
         first_pc = np.zeros([T], dtype='complex')
 
-        pca_real = RandomizedPCA(n_components=1)
+        pca_real = PCA(n_components=1, svd_solver="randomized")
         pca_real.fit(Z.real)
         print('pca_real.components_.shape=',pca_real.components_.shape)
         first_pc.real = pca_real.components_.squeeze()
         
-        pca_imag = RandomizedPCA(n_components=1)
+        pca_imag = PCA(n_components=1, svd_solver="randomized")
         pca_imag.fit(Z.imag)
         print('pca_imag.components_.shape=',pca_imag.components_.shape)
         first_pc.imag = pca_imag.components_.squeeze()
