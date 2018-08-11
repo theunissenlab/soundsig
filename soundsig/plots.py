@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
-from stats import compute_R2
+from .stats import compute_R2
 
 
 def multi_plot(the_data_list, plot_func, title=None, nrows=4, ncols=5, figsize=None, output_pattern=None,
