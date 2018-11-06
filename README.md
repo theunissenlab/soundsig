@@ -23,4 +23,4 @@ soundsig requires the python typical packages matplotlib, numpy, scikit-learn, h
 The code was originally written for Python 2.7 but updated for Python 3.
 
 # TUTORIALS
-Tutorials come in the form of 4 Jupyter Notebooks that can be found at theunissenlab/BioSoundTutorials
+Tutorials come in the form of 4 Jupyter Notebooks that can be found at https://github.com/theunissenlab/BioSoundTutorial
