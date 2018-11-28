@@ -68,7 +68,7 @@ class WavFile():
             nsound = self.data
         #print 'nsound.min=%d, max=%d' % (nsound.min(), nsound.max())
         hex_sound = [struct.pack('h', x) for x in nsound]
-        wf.writeframes(''.join(hex_sound))
+        wf.writeframes(b''.join(hex_sound))
         wf.close()
 
     def analyze(self, min_freq=0, max_freq=None, spec_sample_rate=1000.0, freq_spacing=125.0, envelope_cutoff_freq=200.0, noise_level_db=80, rectify=True, cmplx=False):
