@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.ensemble import RandomForestClassifier as RF
-from sklearn import cross_validation
+from sklearn.model_selection import StratifiedKFold
 from scipy.stats import binom
 
 
@@ -93,11 +93,12 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     cvCount = 0
     
     if testInd is None:
-        skf = cross_validation.StratifiedKFold(yGood, cvFolds)
+        skf = StratifiedKFold(n_splits = cvFolds)
+        skfList = skf.split(Xr, yGood)
     else:
-        skf = [(trainInd,testInd)]
+        skfList = [(trainInd,testInd)]
     
-    for train, test in skf:
+    for train, test in skfList:
         
         # Enforce the MINCOUNT in each class for Training
         trainClasses, trainCount = np.unique(yGood[train], return_counts=True)
