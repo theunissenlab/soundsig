@@ -288,10 +288,10 @@ class BioSound(object):
         self.wt = wt
         
         
-    def ampenv(self, cutoff_freq = 20):
+    def ampenv(self, cutoff_freq = 20, amp_sample_rate = 1000):
     # Calculates the amplitude enveloppe and related parameters
     
-        (amp, tdata)  = temporal_envelope(self.sound, self.samprate, cutoff_freq=cutoff_freq, resample_rate=1000)
+        (amp, tdata)  = temporal_envelope(self.sound, self.samprate, cutoff_freq=cutoff_freq, resample_rate=amp_sample_rate)
         
         # Here are the parameters
         ampdata = amp/np.sum(amp)
@@ -313,10 +313,10 @@ class BioSound(object):
         self.amp = amp
         self.maxAmp = max(amp)
         
-    def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0):
+    def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0, minFormantFreq = 500, maxFormantBW = 500):
     # Calculate the fundamental, the formants and parameters related to these
     
-        sal, fund, fund2, form1, form2, form3, lenfund = fundEstimator(self.sound, self.samprate, self.to, debugFig = debugFig, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency)
+        sal, fund, fund2, form1, form2, form3, lenfund = fundEstimator(self.sound, self.samprate, self.to, debugFig = debugFig, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency, minFormantFreq = minFormantFreq, maxFormantBW = maxFormantBW)
         goodFund = fund[~np.isnan(fund)]
         goodSal = sal[~np.isnan(sal)]
         goodFund2 = fund2[~np.isnan(fund2)]
@@ -417,7 +417,7 @@ class BioSound(object):
             plt.ylabel('Power Linear')
         
             xl, xh, yl, yh = plt.axis()
-            xl = 0.0
+            xl = f_low
             xh = f_high
             plt.axis((xl, xh, yl, yh))
             
@@ -676,6 +676,9 @@ def temporal_envelope(s, sample_rate, cutoff_freq=200.0, resample_rate=None):
     if cutoff_freq is not None:
         srect = lowpass_filter(srect, sample_rate, cutoff_freq, filter_order=4)
         srect[srect < 0] = 0
+        
+    # rescale to max
+    srect = srect*np.max(s)/np.max(srect)
         
     if resample_rate is not None:
         lensound = len(srect)
@@ -1020,7 +1023,7 @@ def lpc(signal, order):
         return np.ones(1, dtype = signal.dtype), None, None
 
 
-def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5):
+def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, minFormantFreq = 500, maxFormantBW = 500):
     """
     Estimates the fundamental frequency of a complex sound.
     soundIn is the sound pressure waveformlog spectrogram.
@@ -1200,7 +1203,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         # Keep formants above 500 Hz and with bandwidth < 500 # This was 1000 for bird calls
         formants = []
         for kk in indices:
-            if ( frqsFormants[kk]>500 and bw[kk] < 500):        
+            if ( frqsFormants[kk]>minFormantFreq and bw[kk] < maxFormantBW):        
                 formants.append(frqsFormants[kk])
         formants = np.array(formants) 
         
