@@ -288,10 +288,10 @@ class BioSound(object):
         self.wt = wt
         
         
-    def ampenv(self):
+    def ampenv(self, cutoff_freq = 20):
     # Calculates the amplitude enveloppe and related parameters
     
-        (amp, tdata)  = temporal_envelope(self.sound, self.samprate, cutoff_freq=20, resample_rate=1000)
+        (amp, tdata)  = temporal_envelope(self.sound, self.samprate, cutoff_freq=cutoff_freq, resample_rate=1000)
         
         # Here are the parameters
         ampdata = amp/np.sum(amp)
@@ -670,8 +670,8 @@ def temporal_envelope(s, sample_rate, cutoff_freq=200.0, resample_rate=None):
         Returns the temporal envelope of the signal, with same sample rate or downsampled.
     """
 
-    #rectify
-    srect = np.abs(s)
+    #rectify a zeroed version
+    srect = np.abs(s - np.mean(s))
     #low pass filter
     if cutoff_freq is not None:
         srect = lowpass_filter(srect, sample_rate, cutoff_freq, filter_order=4)
