@@ -374,8 +374,9 @@ class BioSound(object):
         # plt.xlabel('Time (ms)')
         plt.xlim(0, t[-1])               
         # Plot the amplitude enveloppe  
-        if self.tAmp.size != 0 :      
-            plt.plot(self.tAmp*1000.0, self.amp, 'r', linewidth=2)
+        if self.tAmp.size != 0 :   
+            # rescale amp envelope to max for better display
+            plt.plot(self.tAmp*1000.0, self.amp*np.max(self.sound)/np.max(self.amp), 'r', linewidth=2)
       
         # Plot the spectrogram
         plt.axes([0.1, 0.1, 0.85, 0.6])
@@ -677,8 +678,7 @@ def temporal_envelope(s, sample_rate, cutoff_freq=200.0, resample_rate=None):
         srect = lowpass_filter(srect, sample_rate, cutoff_freq, filter_order=4)
         srect[srect < 0] = 0
         
-    # rescale to max
-    srect = srect*np.max(s)/np.max(srect)
+
         
     if resample_rate is not None:
         lensound = len(srect)
