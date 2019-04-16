@@ -313,10 +313,10 @@ class BioSound(object):
         self.amp = amp
         self.maxAmp = max(amp)
         
-    def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0, minFormantFreq = 500, maxFormantBW = 500):
+    def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0, minFormantFreq = 500, maxFormantBW = 500, method='Stack'):
     # Calculate the fundamental, the formants and parameters related to these
     
-        sal, fund, fund2, form1, form2, form3, lenfund = fundEstimator(self.sound, self.samprate, self.to, debugFig = debugFig, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency, minFormantFreq = minFormantFreq, maxFormantBW = maxFormantBW)
+        sal, fund, fund2, form1, form2, form3, lenfund = fundEstimator(self.sound, self.samprate, self.to, debugFig = debugFig, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency, minFormantFreq = minFormantFreq, maxFormantBW = maxFormantBW, method = method)
         goodFund = fund[~np.isnan(fund)]
         goodSal = sal[~np.isnan(sal)]
         goodFund2 = fund2[~np.isnan(fund2)]
@@ -400,6 +400,10 @@ class BioSound(object):
                      
     # Plot the fundamental on the same figure
         if self.f0.size != 0 :
+            fundplot = self.f0
+            diffFund = np.diff(fundplot)
+            diffFundInd = np.concatenate(([False], abs(diffFund)>1000))
+            fundplot[diffFundInd] = float('nan')
             plt.plot(self.to*1000.0, self.f0, 'k', linewidth=3)
             plt.plot(self.to*1000.0, self.f0_2, 'm', linewidth=3)
             plt.plot(self.to*1000.0, self.F1, 'r--', linewidth=3)
@@ -849,7 +853,7 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
         nWindow += 1  # Make it odd size so that we have a symmetric window
         
     if nWindow < 64:
-        print('Error in mps: window size %d pts (%.3.f s) is two small for reasonable estimates' % (nWindow, window))
+        print('Error in mps: window size %d pts (%.3f s) is two small for reasonable estimates' % (nWindow, window))
         return np.asarray([]), np.asarray([]), np.asarray([])
         
     # Generate the Gaussian window
@@ -1023,7 +1027,7 @@ def lpc(signal, order):
         return np.ones(1, dtype = signal.dtype), None, None
 
 
-def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, minFormantFreq = 500, maxFormantBW = 500):
+def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, minFormantFreq = 500, maxFormantBW = 500, method='Stack'):
     """
     Estimates the fundamental frequency of a complex sound.
     soundIn is the sound pressure waveformlog spectrogram.
@@ -1040,6 +1044,12 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
        highFc = 6000        High frequency cut-off
        minSaliency = 0.5    Threshold in the auto-correlation for minimum saliency - returns NaN for pitch values is saliency is below this number
 
+    Four methods are available: 
+    'AC' - Peak of the auto-correlation function
+    'ACA' - Peak of envelope of auto-correlation function 
+    'Cep' - First peak in cepstrum 
+    'Stack' - Fitting of harmonic stacks (default - works well for zebra finches)
+    
     Returns
            sal     - the time varying pitch saliency - a number between 0 and 1 corresponding to relative size of the first auto-correlation peak
            fund     - the time-varying fundamental in Hz at the same resolution as the spectrogram.
@@ -1368,11 +1378,18 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         if (fundStackGuess > maxFund) or (fundStackGuess < minFund ):
             fundStackGuess = float('nan')
 
-    
+        # Store the result depending on the method chosen
+        if method == 'AC':
+            fund[it] = fundCorrGuess
+        elif method == 'ACA':
+            fund[it] = fundCorrAmpGuess
+        elif method == 'Cep':
+            fund[it] = fundCepGuess
+        elif method == 'Stack':
+            fund[it] = fundStackGuess  
+            
         # A second cepstrum for the second voice
         #     CY2 = dct(powSoundGood-powAmp'- modelPowCep)
-                
-        fund[it] = fundStackGuess        
     
         if  not np.isnan(fundStackGuess):
             powLeft = powSoundGood- powAmp - modelPowCep
