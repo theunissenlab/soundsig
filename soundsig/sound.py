@@ -1685,3 +1685,28 @@ def spec_stats(spec_t, spec_freq, spec):
 
     return stats
 
+def addramp(sound_in, samp_rate=44100, ramp_duration=5):
+# Adds a cosine onset and offset ramp to the sound of length ramp_duration
+# in ms
+
+    samp_ms = samp_rate/1000
+    sound_out = sound_in
+    lensound = len(sound_in)
+
+    nend = int(ramp_duration*samp_ms);
+    if (nend >= lensound):
+        nend = lensound -1;
+
+# Onset ramp
+    for t in range(nend): 
+        mult1=0.5*(1.0-np.cos(np.pi*t/nend)) 
+        sound_out[t] = sound_out[t]*mult1
+ 
+# Offset ramp
+    nbeg = lensound - nend
+    for t in range(nbeg, lensound): 
+        mult1=0.5*(1.0-np.cos(np.pi*(lensound-t-1)/nend)) 
+        sound_out[t] = sound_out[t]*mult1
+        
+        
+    return sound_out
