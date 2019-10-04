@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'soundsig',
-    version = '1.5',
+    version = '1.7',
     packages = ['soundsig'],
     description = 'Sound and Signal Analysis Tools for Bioacousticians and Auditory Neurophysiologists',
     author = 'Frederic Theunissen',
