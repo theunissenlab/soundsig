@@ -170,7 +170,8 @@ class BioSound(object):
         self.F2 = np.asarray([])         # time varying formant 2
         self.F3 = np.asarray([])         # time varying formant 3
         self.fund = np.asarray([])       # Average fundamental
-        self.sal = np.asarray([])        # Average saliency
+        self.sal = np.asarray([])        # time varying saliency
+        self.meansal = np.asarray([])    # mean saliency
         self.fund2 = np.asarray([])      # Average fundamental of 2nd peak
         self.voice2percent = np.asarray([]) # Average percent of presence of second peak
         self.maxfund = np.asarray([])
@@ -341,7 +342,8 @@ class BioSound(object):
         self.F2 = form2         # time varying formant 2
         self.F3 = form3         # time varying formant 3
         self.fund = meanfund       # Average fundamental
-        self.sal = meansal        # Average saliency
+        self.sal = sal             # Time varying saliency
+        self.meansal = meansal        # Average saliency
         self.fund2 = meanfund2      # Average fundamental of 2nd peak
         self.voice2percent = fund2prop*100 # Average percent of presence of second peak
         if np.size(goodFund) > 0 :
@@ -450,9 +452,9 @@ class BioSound(object):
         plt.text(0.4, 1.0, textstr)
         if self.fund.size != 0:
             if self.fund2.size != 0:
-                textstr = 'Mean Fund = %.2f Hz Mean Saliency = %.2f Mean Fund2 = %.2f PF2 = %.2f%%' % (self.fund, self.sal, self.fund2, self.voice2percent)
+                textstr = 'Mean Fund = %.2f Hz Mean Saliency = %.2f Mean Fund2 = %.2f PF2 = %.2f%%' % (self.fund, self.meansal, self.fund2, self.voice2percent)
             else:
-                textstr = 'Mean Fund = %.2f Hz Mean Saliency = %.2f No 2nd Voice Detected' % (self.fund, self.sal)
+                textstr = 'Mean Fund = %.2f Hz Mean Saliency = %.2f No 2nd Voice Detected' % (self.fund, self.meansal)
             plt.text(-0.1, 0.8, textstr)
             
         if self.fund.size != 0:
