@@ -314,10 +314,10 @@ class BioSound(object):
         self.amp = amp
         self.maxAmp = max(amp)
         
-    def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0, minFormantFreq = 500, maxFormantBW = 500, method='Stack'):
+    def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1, method='Stack'):
     # Calculate the fundamental, the formants and parameters related to these
     
-        sal, fund, fund2, form1, form2, form3, lenfund = fundEstimator(self.sound, self.samprate, self.to, debugFig = debugFig, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency, minFormantFreq = minFormantFreq, maxFormantBW = maxFormantBW, method = method)
+        sal, fund, fund2, form1, form2, form3, lenfund = fundEstimator(self.sound, self.samprate, self.to, debugFig = debugFig, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency, minFormantFreq = minFormantFreq, maxFormantBW = maxFormantBW, windowFormant = windowFormant, method = method)
         goodFund = fund[~np.isnan(fund)]
         goodSal = sal[~np.isnan(sal)]
         goodFund2 = fund2[~np.isnan(fund2)]
@@ -1029,7 +1029,7 @@ def lpc(signal, order):
         return np.ones(1, dtype = signal.dtype), None, None
 
 
-def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, minFormantFreq = 500, maxFormantBW = 500, method='Stack'):
+def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1, method='Stack'):
     """
     Estimates the fundamental frequency of a complex sound.
     soundIn is the sound pressure waveformlog spectrogram.
@@ -1038,13 +1038,16 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     The sound must include at least 1024 sample points
 
     The optional parameter with defaults are
-    Some user parameters (should be part of the function at some time)
+    Some user parameters
        debugFig = 0         Set to zero to eliminate figures.
        maxFund = 1500       Maximum fundamental frequency
        minFund = 300        Minimum fundamental frequency
        lowFc = 200          Low frequency cut-off for band-passing the signal prior to auto-correlation.
        highFc = 6000        High frequency cut-off
        minSaliency = 0.5    Threshold in the auto-correlation for minimum saliency - returns NaN for pitch values is saliency is below this number
+      minFormantFreq = 500  Minimum value of firt formant
+      maxFormantBW = 500    Maxminum value of formants bandwith.
+      windowFormant = 0.1   Time window for Formant calculation.  Includes 5 std of normal window.
 
     Four methods are available: 
     'AC' - Peak of the auto-correlation function
@@ -1109,8 +1112,11 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     winLen = int(np.fix((2.0*alpha/minFund)*fs))  # Length of Gaussian window based on minFund
     if (winLen%2 == 0):  # Make a symmetric window
         winLen += 1
-        
-    winLen2 = 2**12+1   # This looks like a good size for LPC - 4097 points
+     
+    # Use 200 ms for LPC Window - make this a parameter at some point
+    winLen2 = int(np.fix(windowFormant*fs))
+    if (winLen2%2 == 0):  # Make a symmetric window
+        winLen2 += 1
 
     gt, w = gaussian_window(winLen, alpha)
     gt2, w2 = gaussian_window(winLen2, alpha)
@@ -1211,13 +1217,13 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
         frqsFormants = angz*(fs/(2*np.pi))
         indices = np.argsort(frqsFormants)
         bw = -0.5*(fs/(2*np.pi))*np.log(np.abs(rts))  # FIXME (kevin): I think this line was broken before... it was using 1/2
-    
+        
         # Keep formants above 500 Hz and with bandwidth < 500 # This was 1000 for bird calls
         formants = []
         for kk in indices:
             if ( frqsFormants[kk]>minFormantFreq and bw[kk] < maxFormantBW):        
                 formants.append(frqsFormants[kk])
-        formants = np.array(formants) 
+        formants = np.array(formants)
         
         if len(formants) > 0 : 
             form1[it] = formants[0]
@@ -1488,71 +1494,127 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
             plt.pause(1)
     
     # Fix formants.
-    meanf1 = np.mean(form1[~np.isnan(form1)])
-    meanf2 = np.mean(form2[~np.isnan(form2)])
-    meanf3 = np.mean(form3[~np.isnan(form3)])
+    
+    # Find means in regions where there are two formants
 
-    for it in range(nt):
-        if ~np.isnan(form1[it]):
-            df11 = np.abs(form1[it]-meanf1)
-            df12 = np.abs(form1[it]-meanf2)
-            df13 = np.abs(form1[it]-meanf3)
-            if df12 < df11:
-                if df13 < df12:
-                    if ~np.isnan(form3[it]):
-                        df33 = np.abs(form3[it]-meanf3)
-                        if df13 < df33:
-                            form3[it] = form1[it]
-                    else:
-                      form3[it] = form1[it]
+    
+    # Decide whether there is formant 3
+    n3 = np.sum(~np.isnan(form3))
+    
+    if (n3 < 0.1*nt):   # There are only two formants - fix formant 3 by merging...
+        meanf1 = np.mean(form1[~np.isnan(form2)])
+        meanf2 = np.mean(form2[~np.isnan(form2)])
+        for it in range(nt):
+            if ~np.isnan(form3[it]):
+                df12 = np.abs(form2[it]-meanf1)
+                df23 = np.abs(form3[it]-meanf2)
+                if df12 < df23 :
+                    form1[it] = (form1[it] + form2[it])/2.0
+                    form2[it] = form3[it]
+                    form3[it] = np.nan
                 else:
-                    if ~np.isnan(form2[it]):
-                        df22 = np.abs(form2[it]-meanf2)
-                        if df12 < df22:
-                            form2[it] = form1[it]
-                    else:
-                        form2[it] = form1[it]
-                form1[it] = float('nan')
-            if ~np.isnan(form2[it]):  
-                df21 = np.abs(form2[it]-meanf1)
-                df22 = np.abs(form2[it]-meanf2)
-                df23 = np.abs(form2[it]-meanf3)
-                if df21 < df22 :
+                    form2[it] = (form2[it] + form3[it])/2.0
+                    form3[it] = np.nan
+            else:    # if there is only one figure out if its second or first
+                if np.isnan(form2[it]):
                     if ~np.isnan(form1[it]):
                         df11 = np.abs(form1[it]-meanf1)
-                        if df21 < df11:
-                            form1[it] = form2[it]
-                    else:
-                      form1[it] = form2[it]
-                    form2[it] = float('nan')
-                elif df23 < df22:
-                    if ~np.isnan(form3[it]):
-                        df33 = np.abs(form3[it]-meanf3)
-                        if df23 < df33:
-                            form3[it] = form2[it]
-                    else:
+                        df12 = np.abs(form1[it]-meanf2)
+                        if (df12 < df11):
+                            form2[it] = form1[it]
+                            form1[it] = np.nan
+    else:
+        meanf1 = np.mean(form1[~np.isnan(form3)])
+        meanf2 = np.mean(form2[~np.isnan(form3)])
+        meanf3 = np.mean(form3[~np.isnan(form3)])
+        for it in range(nt):
+            if np.isnan(form3[it]):
+                if np.isnan(form2[it]):  # there is only one formant found
+                    if ~np.isnan(form1[it]):
+                        df11 = np.abs(form1[it]-meanf1)
+                        df12 = np.abs(form1[it]-meanf2)
+                        df13 = np.abs(form3[it]-meanf3)
+                        if (df13 < np.minimum(df11,df12)):
+                            form3[it] = form1[it]
+                            form1[it] = np.nan
+                        elif (df12 < np.minimum(df11, df13)):
+                            form2[it] = form1[it]
+                            form1[it] = np.nan
+                else:   # two formants are found
+                    df22 = np.abs(form2[it]-meanf2)
+                    df23 = np.abs(form2[it]-meanf3)
+                    if (df23 < df22):
                         form3[it] = form2[it]
-                    form2[it] = float('nan')
-            if ~np.isnan(form3[it]):
-                df31 = np.abs(form3[it]-meanf1)
-                df32 = np.abs(form3[it]-meanf2)
-                df33 = np.abs(form3[it]-meanf3)
-                if df32 < df33:
-                    if df31 < df32:
-                        if ~np.isnan(form1[it]):
-                            df11 = np.abs(form1[it]-meanf1)
-                            if df31 < df11:
-                                form1[it] = form3[it]
+                        df11 = np.abs(form1[it]-meanf1)
+                        df12 = np.abs(form1[it]-meanf2)
+                        if (df12 < df11):
+                            form2[it] = form1[it]
+                            form1[it] = np.nan
                         else:
-                            form1[it] = form3[it]
-                    else:
-                        if ~np.isnan(form2[it]):
-                            df22 = np.abs(form2[it]-meanf2)
-                            if df32 < df22:
-                                form2[it] = form3[it]
-                        else:
-                            form2[it] = form3[it]
-                    form3[it] = float('nan')
+                            form2[it] = np.nan
+                        
+
+#    for it in range(nt):
+#        if ~np.isnan(form1[it]):
+#            df11 = np.abs(form1[it]-meanf1)
+#            df12 = np.abs(form1[it]-meanf2)
+#            df13 = np.abs(form1[it]-meanf3)
+#            if df12 < df11:
+#                if df13 < df12:
+#                    if ~np.isnan(form3[it]):
+#                        df33 = np.abs(form3[it]-meanf3)
+#                        if df13 < df33:
+#                            form3[it] = form1[it]
+#                    else:
+#                      form3[it] = form1[it]
+#                else:
+#                    if ~np.isnan(form2[it]):
+#                        df22 = np.abs(form2[it]-meanf2)
+#                        if df12 < df22:
+#                            form2[it] = form1[it]
+#                    else:
+#                        form2[it] = form1[it]
+#                form1[it] = float('nan')
+#            if ~np.isnan(form2[it]):
+#                df21 = np.abs(form2[it]-meanf1)
+#                df22 = np.abs(form2[it]-meanf2)
+#                df23 = np.abs(form2[it]-meanf3)
+#                if df21 < df22 :
+#                    if ~np.isnan(form1[it]):
+#                        df11 = np.abs(form1[it]-meanf1)
+#                        if df21 < df11:
+#                            form1[it] = form2[it]
+#                    else:
+#                      form1[it] = form2[it]
+#                    form2[it] = float('nan')
+#                elif df23 < df22:
+#                    if ~np.isnan(form3[it]):
+#                        df33 = np.abs(form3[it]-meanf3)
+#                        if df23 < df33:
+#                            form3[it] = form2[it]
+#                    else:
+#                        form3[it] = form2[it]
+#                    form2[it] = float('nan')
+#            if ~np.isnan(form3[it]):
+#                df31 = np.abs(form3[it]-meanf1)
+#                df32 = np.abs(form3[it]-meanf2)
+#                df33 = np.abs(form3[it]-meanf3)
+#                if df32 < df33:
+#                    if df31 < df32:
+#                        if ~np.isnan(form1[it]):
+#                            df11 = np.abs(form1[it]-meanf1)
+#                            if df31 < df11:
+#                                form1[it] = form3[it]
+#                        else:
+#                            form1[it] = form3[it]
+#                    else:
+#                        if ~np.isnan(form2[it]):
+#                            df22 = np.abs(form2[it]-meanf2)
+#                            if df32 < df22:
+#                                form2[it] = form3[it]
+#                        else:
+#                            form2[it] = form3[it]
+#                    form3[it] = float('nan')
 
     return (sal, fund, fund2, form1, form2, form3, soundlen)
 
