@@ -1533,7 +1533,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
                     if ~np.isnan(form1[it]):
                         df11 = np.abs(form1[it]-meanf1)
                         df12 = np.abs(form1[it]-meanf2)
-                        df13 = np.abs(form3[it]-meanf3)
+                        df13 = np.abs(form1[it]-meanf3)
                         if (df13 < np.minimum(df11,df12)):
                             form3[it] = form1[it]
                             form1[it] = np.nan
