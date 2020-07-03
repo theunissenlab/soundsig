@@ -110,6 +110,37 @@ def fft_segments(X):
     """
     return np.fft.fft(X, axis=3)
 
+    
+def coherency(cross_spectra):
+    """Compute coherency from cross spectra matrix
+
+    Parameters
+    ==========
+    cross_spectra: np.ndarray
+        shape (N_CHANNELS, N_CHANNELS, N_FREQS)
+        - each element cross_spectra[i, j] represents the cross spectra between
+        the ith and jth channels
+
+    Returns
+    =======
+    coherency: np.ndarray
+        shape (N_CHANNELS, N_CHANNELS, N_FREQS)
+        - the coherency function for each pair of channels
+    """
+    p_spec = np.abs(cross_spectra.diagonal().T)
+    return (
+        cross_spectra /
+        np.sqrt(p_spec[np.newaxis, :, :] * p_spec[:, np.newaxis, :])
+    )
+
+
+def _replace_inf_with_0(x):
+    """Replace NaN and inf elements with 0
+    """
+    x[np.isinf(x)] = 0
+    x[np.isnan(x)] = 0
+    return x
+
 
 def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     """Compute multitapered coherence for signal data over potentially several trials
@@ -142,6 +173,8 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     
     Returns
     =======
+    Dictionary with the following keys:
+
     t: np.ndarray
         shape (chunk_size,)
         - Time axis of output coherency in time domain
@@ -203,20 +236,14 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     # segments_cross_spectra: (N_CHUNKS, N_CHANNELS, N_CHANNELS, n_freqs) ->
     # summed_cross_spectra: (N_CHANNELS, N_CHANNELS, n_freqs)
     summed_cross_spectra = segments_cross_spectra.sum(axis=0)  # y in matlab
-    
-    def coherency(cross_spectra):
-        p_spec = np.abs(cross_spectra.diagonal().T)
-        return (
-            cross_spectra /
-            np.sqrt(p_spec[np.newaxis, :, :] * p_spec[:, np.newaxis, :])
-        )
 
     ## Compute jackknife samples for coherence and coherency
 
     # Estimated values of coherency and coherence across all chunks
     est_coherency = coherency(summed_cross_spectra)
-    est_coherence = np.abs(est_coherency) ** 2
-    
+    est_sqrt_coherence = np.arctanh(np.abs(est_coherency))
+    est_sqrt_coherence = _replace_inf_with_0(est_sqrt_coherence)
+
     # Compute estimates of coherency in sets of (n_chunks - 1) chunks
     cross_spectra_jn = summed_cross_spectra - segments_cross_spectra
     # Convert samples into pseudovalues
@@ -227,17 +254,28 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     est_coherency_final = np.mean(est_coherency_jackknife, axis=0)
     
     # Compute estimates of coherence in sets of (n_chunks - 1) chunks
-    est_coherence_jackknife = np.array([
-        (n_chunks * est_coherence) - ((n_chunks - 1) * np.abs(coherency(x)) ** 2)
+    est_sqrt_coherence_jackknife = np.array([
+        (
+            (n_chunks * est_sqrt_coherence) -
+            ((n_chunks - 1) * (
+                _replace_inf_with_0(np.arctanh(np.abs(coherency(x))))
+            ))
+        )
         for x in cross_spectra_jn
     ])
+
     # Convert samples into pseudovalues
-    est_coherence_final = np.mean(est_coherence_jackknife, axis=0)
-    est_coherence_var = (1 / n_chunks) * np.var(est_coherence_jackknife, axis=0)
+    est_sqrt_coherence_final = np.mean(est_sqrt_coherence_jackknife, axis=0)
+    est_sqrt_coherence_var = (1 / n_chunks) * np.var(est_sqrt_coherence_jackknife, axis=0)
     
-    coherence_upper = est_coherence_final + 2 * np.sqrt(est_coherence_var)
-    coherence_lower = est_coherence_final - 2 * np.sqrt(est_coherence_var)
-    
+    sqrt_coherence_upper = est_sqrt_coherence_final + 2 * np.sqrt(est_sqrt_coherence_var)
+    sqrt_coherence_lower = est_sqrt_coherence_final - 2 * np.sqrt(est_sqrt_coherence_var)
+
+    est_coherence_final = est_sqrt_coherence_final ** 2
+    coherence_upper = sqrt_coherence_upper ** 2
+    coherence_lower = sqrt_coherence_lower ** 2
+   
+    # TODO: mask the coherency values by significant coherence values
     coherency_time_domain = np.fft.ifft(est_coherency_final, axis=2)
 
     return {
