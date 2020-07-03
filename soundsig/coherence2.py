@@ -271,9 +271,9 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     sqrt_coherence_upper = est_sqrt_coherence_final + 2 * np.sqrt(est_sqrt_coherence_var)
     sqrt_coherence_lower = est_sqrt_coherence_final - 2 * np.sqrt(est_sqrt_coherence_var)
 
-    est_coherence_final = est_sqrt_coherence_final ** 2
-    coherence_upper = sqrt_coherence_upper ** 2
-    coherence_lower = sqrt_coherence_lower ** 2
+    est_coherence_final = np.tanh(est_sqrt_coherence_final) ** 2
+    coherence_upper = np.tanh(sqrt_coherence_upper) ** 2
+    coherence_lower = np.tanh(sqrt_coherence_lower) ** 2
    
     # TODO: mask the coherency values by significant coherence values
     coherency_time_domain = np.fft.ifft(est_coherency_final, axis=2)
