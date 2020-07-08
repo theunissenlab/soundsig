@@ -56,7 +56,7 @@ def chunk(X, window_size=1024, overlap=0.5):
     # so that last chunk will be of width window_size
     padded_size = (n_chunks + 1) * window_step + window_size
     X = np.pad(X, [(0, 0), (0, padded_size - X.shape[-1])], "constant")
-        
+
     output = np.array([
         X[:, i * window_step:i * window_step + window_size] for i in range(0, n_chunks)
     ])
@@ -89,7 +89,7 @@ def taper_segments(X, NW=3):
     n_tapers = 2 * NW - 1
    
     # Get the taper functions as a matrix
-    tapers, _ = ntalg.dpss_windows(window_size, n_tapers, n_tapers)
+    tapers, _ = ntalg.dpss_windows(window_size, NW, n_tapers)
     
     # Apply the dpss functions elementwise to the input signal
     return X[:, :, np.newaxis, :] * tapers
@@ -199,8 +199,6 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     if not np.all([X[i].shape[0] == X[0].shape[0] for i in range(len(X))]):
         raise ValueError("All trials must have the same number of channels")
 
-    # Signal time axis
-    t = np.arange(chunk_size) / sampling_rate
     # FFT frequency axis
     freqs = np.fft.fftfreq(chunk_size, 1 / sampling_rate)
 
@@ -270,13 +268,19 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     
     sqrt_coherence_upper = est_sqrt_coherence_final + 2 * np.sqrt(est_sqrt_coherence_var)
     sqrt_coherence_lower = est_sqrt_coherence_final - 2 * np.sqrt(est_sqrt_coherence_var)
-
+    
     est_coherence_final = np.tanh(est_sqrt_coherence_final) ** 2
     coherence_upper = np.tanh(sqrt_coherence_upper) ** 2
     coherence_lower = np.tanh(sqrt_coherence_lower) ** 2
    
-    # TODO: mask the coherency values by significant coherence values
+    # mask the coherency values by significant coherence values
+    coherency_mask = np.logical_or(est_coherence_final  < coherence_lower, 
+                                       est_coherence_final  > coherence_upper)
+    est_coherency_final[coherency_mask] = 0
+    
     coherency_time_domain = np.fft.ifft(est_coherency_final, axis=2)
+    npts = coherency_time_domain.shape[-1]
+    t = np.arange(-npts/2 +1, npts/2+1)*1000.0/sampling_rate
 
     return {
         "t": t,
