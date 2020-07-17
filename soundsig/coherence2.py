@@ -1,7 +1,7 @@
 import numpy as np
 import nitime.algorithms as ntalg
 import scipy.stats
-
+from scipy.signal import detrend
 
 def cross_spectra(X):
     """For each pairwise combination of channels, compute cross spectra
@@ -58,7 +58,7 @@ def chunk(X, window_size=1024, overlap=0.5):
     X = np.pad(X, [(0, 0), (0, padded_size - X.shape[-1])], "constant")
 
     output = np.array([
-        X[:, i * window_step:i * window_step + window_size] for i in range(0, n_chunks)
+        detrend(X[:, i * window_step:i * window_step + window_size]) for i in range(0, n_chunks)
     ])
     
     return output
@@ -142,7 +142,7 @@ def _replace_inf_with_0(x):
     return x
 
 
-def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
+def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=3):
     """Compute multitapered coherence for signal data over potentially several trials
 
     Parameters
@@ -170,7 +170,9 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
     overlap: float
         default 0.5
         - Fraction of overlap between adjacent chunks when estimating power spectra
-    
+    NW: int
+        Time bandwith parameter for tapering. n_tapers = 2 * NW - 1, num tapers goes
+        up with NW. Defaults to 3
     Returns
     =======
     Dictionary with the following keys:
@@ -214,7 +216,7 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5):
 
     # segments: (N_CHUNKS, N_CHANNELS, chunk_size) ->
     # segments_tapered: (N_CHUNKS, N_CHANNELS, N_TAPERS, chunk_size)
-    segments_tapered = taper_segments(segments)
+    segments_tapered = taper_segments(segments,NW=NW)
 
     # segments_tapered: (N_CHUNKS, N_CHANNELS, N_TAPERS, chunk_size) ->
     # segments_fft: (N_CHUNKS, N_CHANNELS, N_TAPERS, n_freqs == chunk_size)
