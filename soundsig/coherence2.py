@@ -265,16 +265,14 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=
     ])
 
     # Convert samples into pseudovalues
-    est_sqrt_coherence_final = np.mean(est_sqrt_coherence_jackknife, axis=0)
-    est_sqrt_coherence_var = (1 / n_chunks) * np.var(est_sqrt_coherence_jackknife, axis=0)
+    # not sure if this mean should be in the tanh, if the bounds are after a tanh
+    # then the mean should be... but not sure if any of this is right.
+    est_coherence_final = np.mean(np.tanh(est_sqrt_coherence_jackknife) ** 2,axis=0)
+    est_coherence_jackknife = np.tanh(est_sqrt_coherence_jackknife)**2
+    est_coherence_var = (1 / n_chunks) * np.var(est_coherence_jackknife)
+    coherence_upper = est_coherence_final + 2 * np.sqrt(est_coherence_var)
+    coherence_lower = est_coherence_final - 2 * np.sqrt(est_coherence_var)
     
-    sqrt_coherence_upper = est_sqrt_coherence_final + 2 * np.sqrt(est_sqrt_coherence_var)
-    sqrt_coherence_lower = est_sqrt_coherence_final - 2 * np.sqrt(est_sqrt_coherence_var)
-    
-    est_coherence_final = np.tanh(est_sqrt_coherence_final) ** 2
-    coherence_upper = np.tanh(sqrt_coherence_upper) ** 2
-    coherence_lower = np.tanh(sqrt_coherence_lower) ** 2
-   
     # mask the coherency values by significant coherence values
     coherency_mask = np.logical_or(est_coherence_final  < coherence_lower, 
                                        est_coherence_final  > coherence_upper)
