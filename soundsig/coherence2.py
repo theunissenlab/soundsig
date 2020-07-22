@@ -267,8 +267,8 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=
     # Convert samples into pseudovalues
     # not sure if this mean should be in the tanh, if the bounds are after a tanh
     # then the mean should be... but not sure if any of this is right.
-    est_coherence_final = np.mean(np.tanh(est_sqrt_coherence_jackknife) ** 2,axis=0)
     est_coherence_jackknife = np.tanh(est_sqrt_coherence_jackknife)**2
+    est_coherence_final = np.mean(est_coherence_jackknife,axis=0)
     est_coherence_var = (1 / n_chunks) * np.var(est_coherence_jackknife)
     coherence_upper = est_coherence_final + 2 * np.sqrt(est_coherence_var)
     coherence_lower = est_coherence_final - 2 * np.sqrt(est_coherence_var)
