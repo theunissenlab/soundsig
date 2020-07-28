@@ -275,18 +275,20 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=
     sqrt_coherence_upper = est_sqrt_coherence_final + 2 * np.sqrt(est_sqrt_coherence_var)
     sqrt_coherence_lower = est_sqrt_coherence_final - 2 * np.sqrt(est_sqrt_coherence_var)
     
-    coherency_mask = sqrt_coherence_lower<0
+    # Mask for non-significant coherence values
+    coherency_mask = sqrt_coherence_lower < 0
     
-    est_sqrt_coherence_final[est_sqrt_coherence_final<0] = 0
-    sqrt_coherence_upper[sqrt_coherence_upper<0] = 0
-    sqrt_coherence_lower[sqrt_coherence_lower<0] = 0
+    # Make sure we don't project to pseudovalues of sqrt coherence less than 0
+    est_sqrt_coherence_final[est_sqrt_coherence_final < 0] = 0
+    sqrt_coherence_upper[sqrt_coherence_upper < 0] = 0
+    sqrt_coherence_lower[sqrt_coherence_lower < 0] = 0
        
     est_coherence_final = np.tanh(est_sqrt_coherence_final) ** 2
     coherence_upper = np.tanh(sqrt_coherence_upper) ** 2
     coherence_lower = np.tanh(sqrt_coherence_lower) ** 2
     
     est_coherence_jackknife = np.tanh(est_sqrt_coherence_jackknife)**2
-    est_coherence_final = np.mean(est_coherence_jackknife,axis=0)
+    est_coherence_final = np.mean(est_coherence_jackknife, axis=0)
     est_coherence_var = (1 / n_chunks) * np.var(est_coherence_jackknife)
     coherence_upper = est_coherence_final + 2 * np.sqrt(est_coherence_var)
     coherence_lower = est_coherence_final - 2 * np.sqrt(est_coherence_var)
