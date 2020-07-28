@@ -267,6 +267,24 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=
     # Convert samples into pseudovalues
     # not sure if this mean should be in the tanh, if the bounds are after a tanh
     # then the mean should be... but not sure if any of this is right.
+    
+    # Convert samples into pseudovalues
+    est_sqrt_coherence_final = np.mean(est_sqrt_coherence_jackknife, axis=0)
+    est_sqrt_coherence_var = (1 / n_chunks) * np.var(est_sqrt_coherence_jackknife, axis=0)
+    
+    sqrt_coherence_upper = est_sqrt_coherence_final + 2 * np.sqrt(est_sqrt_coherence_var)
+    sqrt_coherence_lower = est_sqrt_coherence_final - 2 * np.sqrt(est_sqrt_coherence_var)
+    
+    coherency_mask = sqrt_coherence_lower<0
+    
+    est_sqrt_coherence_final[est_sqrt_coherence_final<0] = 0
+    sqrt_coherence_upper[sqrt_coherence_upper<0] = 0
+    sqrt_coherence_lower[sqrt_coherence_lower<0] = 0
+       
+    est_coherence_final = np.tanh(est_sqrt_coherence_final) ** 2
+    coherence_upper = np.tanh(sqrt_coherence_upper) ** 2
+    coherence_lower = np.tanh(sqrt_coherence_lower) ** 2
+    
     est_coherence_jackknife = np.tanh(est_sqrt_coherence_jackknife)**2
     est_coherence_final = np.mean(est_coherence_jackknife,axis=0)
     est_coherence_var = (1 / n_chunks) * np.var(est_coherence_jackknife)
@@ -274,11 +292,10 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=
     coherence_lower = est_coherence_final - 2 * np.sqrt(est_coherence_var)
     
     # mask the coherency values by significant coherence values
-    coherency_mask = np.logical_or(est_coherence_final  < coherence_lower, 
-                                       est_coherence_final  > coherence_upper)
-    est_coherency_final[coherency_mask] = 0
+    tmp_coherency = est_coherency_final.copy()
+    tmp_coherency[coherency_mask] = 0
     
-    coherency_time_domain = np.fft.ifft(est_coherency_final, axis=2)
+    coherency_time_domain = np.fft.ifft(tmp_coherency, axis=2)
     npts = coherency_time_domain.shape[-1]
     t = np.arange(-npts/2 +1, npts/2+1)*1000.0/sampling_rate
 
