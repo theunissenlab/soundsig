@@ -52,16 +52,18 @@ def chunk(X, window_size=1024, overlap=0.5):
     n_overlap = int(window_size * overlap)
     n_channels, n_samples = X.shape
     window_step = int(window_size - n_overlap)
+
+    n_chunks = (n_samples - window_step) // window_step
+    if n_samples % window_step != 0:
+        n_chunks += 1
     
-    # compute the length of each chunk
-    n_chunks = (n_samples - window_size) // window_step
     # pad signal with zeros along time axis
     # so that last chunk will be of width window_size
     padded_size = (n_chunks + 1) * window_step + window_size
     X = np.pad(X, [(0, 0), (0, padded_size - X.shape[-1])], "constant")
 
     output = np.array([
-        detrend(X[:, i * window_step:i * window_step + window_size]) for i in range(0, n_chunks)
+        X[:, i * window_step:i * window_step + window_size] for i in range(0, n_chunks)
     ])
     
     return output
@@ -212,9 +214,8 @@ def multitapered_coherence(X, sampling_rate=1, chunk_size=1024, overlap=0.5, NW=
     
     # X: (N_TRIALS, N_CHANNELS, N_SAMPLES[i]) ->
     # segments: (N_CHUNKS, N_CHANNELS, chunk_size)
-    segments = np.concatenate(
-        [chunk(segment, chunk_size, overlap) for segment in X]
-    )
+    chunks = [chunk(segment, chunk_size, overlap) for segment in X]
+    segments = np.concatenate([detrend(chunk) for chunk in chunks])
     n_chunks = segments.shape[0]
 
     # segments: (N_CHUNKS, N_CHANNELS, chunk_size) ->
