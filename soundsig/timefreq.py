@@ -4,9 +4,9 @@ import time
 
 from abc import ABCMeta,abstractmethod
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 
-
-from scipy.fftpack import fft,fftfreq, ifft
+from scipy.fftpack import fft, fftfreq, ifft, next_fast_len
 from scipy.signal import hilbert
 from scipy.interpolate import RectBivariateSpline
 
@@ -39,26 +39,34 @@ class GaussianSpectrumEstimator(ComplexSpectrumEstimator):
     def __init__(self, nstd=6):
         ComplexSpectrumEstimator.__init__(self)
         self.nstd = nstd
+        self._gauss_window_cache = {}
 
     def get_frequencies(self, signal_length, sample_rate):
+        signal_length = next_fast_len(signal_length)
         freq = fftfreq(signal_length, d=1.0/sample_rate)
         nz = freq >= 0.0
         return freq[nz]
 
+    def _get_gauss_window(self, nwinlen):
+        if nwinlen in self._gauss_window_cache:
+            return self._gauss_window_cache[nwinlen]
+        else:
+            if nwinlen % 2 == 0:
+                nwinlen += 1
+            hnwinlen = nwinlen // 2
+            gauss_t = np.arange(-hnwinlen, hnwinlen+1, 1.0)
+            gauss_std = float(nwinlen) / float(self.nstd)
+            gauss_window = np.exp(-gauss_t**2 / (2.0*gauss_std**2)) / (gauss_std*np.sqrt(2*np.pi))
+            self._gauss_window_cache[nwinlen] = gauss_window
+            return gauss_window
+
     def estimate(self, signal, sample_rate, start_time, end_time):
         nwinlen = len(signal)
-        if nwinlen % 2 == 0:
-            nwinlen += 1
-        hnwinlen = nwinlen // 2
+        gauss_window = self._get_gauss_window(nwinlen)
 
-        #construct the window
-        gauss_t = np.arange(-hnwinlen, hnwinlen+1, 1.0)
-        gauss_std = float(nwinlen) / float(self.nstd)
-        self.gauss_window = np.exp(-gauss_t**2 / (2.0*gauss_std**2)) / (gauss_std*np.sqrt(2*np.pi))
-
+        fft_len = next_fast_len(len(signal))
         #window the signal and take the FFT
-        fft_len = len(signal)
-        windowed_slice = signal[:fft_len]*self.gauss_window[:fft_len]
+        windowed_slice = signal[:fft_len]*gauss_window[:fft_len]
         s_fft = fft(windowed_slice, n=fft_len, overwrite_x=1)
         freq = fftfreq(fft_len, d=1.0/sample_rate)
         nz = freq >= 0.0
@@ -232,16 +240,16 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
 
     nincrement = int(np.round(sample_rate*increment))
     if zero_pad:
-        nwindows = len(s) // nincrement
         # print 'len(s)=%d, nwinlen=%d, hwinlen=%d, nincrement=%d, nwindows=%d' % (len(s), nwinlen, hnwinlen, nincrement, nwindows)
         #pad the signal with zeros
         zs = np.zeros([len(s) + 2*hnwinlen])
         zs[hnwinlen:-hnwinlen] = s
-        window_centers = np.arange(nwindows)*nincrement + hnwinlen
+        windows = sliding_window_view(zs, nwinlen, axis=0)[::nincrement]
+        window_centers = windows[:, hnwinlen]
+        nwindows = len(windows)
     else:
-        first_window_center = hnwinlen+1
-        last_window_center = len(s)-hnwinlen
-        window_centers = np.arange(first_window_center, last_window_center, nincrement, dtype='int')
+        windows = sliding_window_view(s, nwinlen, axis=0)[::nincrement]
+        window_centers = windows[:, hnwinlen]
         nwindows = len(window_centers)
         assert nwindows > 0, "nwindows=0, len(s)=%d, nwinlen=%d, nincrement=%d, window_centers=%s" % (len(s), nwinlen, nincrement, str(window_centers))
         zs = s
@@ -251,12 +259,10 @@ def timefreq(s, sample_rate, window_length, increment, spectrum_estimator, min_f
     #take the FFT of each segment, padding with zeros when necessary to keep window length the same
     #tf = np.zeros([nfreq, nwindows], dtype='complex')
     tf = np.zeros([nfreq, nwindows], dtype='complex')
-    for k in range(nwindows):
-        center = window_centers[k]
-        si = center - hnwinlen
-        ei = center + hnwinlen + 1
-
-        spec_freq,est = spectrum_estimator.estimate(zs[si:ei], sample_rate, si/sample_rate, ei/sample_rate)
+    for k, window in enumerate(windows):
+        si = window_centers[k] - hnwinlen
+        ei = window_centers[k] + hnwinlen + 1
+        spec_freq,est = spectrum_estimator.estimate(window, sample_rate, si/sample_rate, ei/sample_rate)
         findex = (spec_freq <= max_freq) & (spec_freq >= min_freq)
         #print 'k=%d' % k
         #print 'si=%d, ei=%d' % (si, ei)
