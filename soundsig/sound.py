@@ -854,9 +854,9 @@ def mps(spectrogram, df, dt, window=None, Norm=True):
     if nWindow%2 == 0:
         nWindow += 1  # Make it odd size so that we have a symmetric window
         
-    if nWindow < 64:
-        print('Error in mps: window size %d pts (%.3f s) is two small for reasonable estimates' % (nWindow, window))
-        return np.asarray([]), np.asarray([]), np.asarray([])
+    #if nWindow < 64:
+    #    print('Error in mps: window size %d pts (%.3f s) is two small for reasonable estimates' % (nWindow, window))
+    #    return np.asarray([]), np.asarray([]), np.asarray([])
         
     # Generate the Gaussian window
     gt, wg = gaussian_window(nWindow, 6)
@@ -1069,18 +1069,19 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     soundLen = len(soundIn)
     nfilt = 1024
     if soundLen < 1024:
-        print('Error in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
-        return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
+        print('Warning in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
+        print('Signal will not be filtered - you might want to filter before making Biosound oobject')
+         # return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
+    else:
+        # high pass filter the signal
+        highpassFilter = firwin(nfilt-1, 2.0*lowFc/fs, pass_zero=False)
+        padlen = min(soundLen-10, 3*len(highpassFilter))
+        soundIn = filtfilt(highpassFilter, [1.0], soundIn, padlen=padlen)
 
-    # high pass filter the signal
-    highpassFilter = firwin(nfilt-1, 2.0*lowFc/fs, pass_zero=False)
-    padlen = min(soundLen-10, 3*len(highpassFilter))
-    soundIn = filtfilt(highpassFilter, [1.0], soundIn, padlen=padlen)
-
-    # low pass filter the signal
-    lowpassFilter = firwin(nfilt, 2.0*highFc/fs)
-    padlen = min(soundLen-10, 3*len(lowpassFilter))
-    soundIn = filtfilt(lowpassFilter, [1.0], soundIn, padlen=padlen)
+        # low pass filter the signal
+        lowpassFilter = firwin(nfilt, 2.0*highFc/fs)
+        padlen = min(soundLen-10, 3*len(lowpassFilter))
+        soundIn = filtfilt(lowpassFilter, [1.0], soundIn, padlen=padlen)
 
     # Plot a spectrogram?
     #if debugFig:
