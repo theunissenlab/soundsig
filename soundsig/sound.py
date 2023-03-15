@@ -34,7 +34,7 @@ from soundsig.detect_peaks import detect_peaks
 class WavFile():
     """ Class for representing a sound and writing it to a .wav file """
 
-    def __init__(self, file_name=None, log_spectrogram=True):
+    def __init__(self, file_name=None, log_spectrogram=True, mono=False):
 
         self.log_spectrogram = log_spectrogram
         if file_name is None:
@@ -43,17 +43,19 @@ class WavFile():
             self.data = None
             self.num_channels = 1
         else:
-            wr = wave.open(file_name, 'r')
-            self.num_channels = wr.getnchannels()
-            self.sample_depth = wr.getsampwidth()
-            wr.close()
+            self.sample_rate, self.data = read_wavfile(file_name)
+            self.sample_depth = 2 # 2 bytes  - used on writing to get 16 bit files.
 
-            self.sample_rate, data = read_wavfile(file_name)
-            # If stereo make mono
-            if self.num_channels == 1:
-                self.data = data
+            if (len(self.data.shape) == 1):
+                self.num_channels = 1
             else:
-                self.data = data.mean(axis=1)
+                self.num_channels = self.data.shape[1]
+
+            # If multi-channel collapse
+            if mono:
+                if self.num_channels != 1:
+                    self.data = self.data.mean(axis=1)
+                    self.num_channels = 1
 
         self.analyzed = False
 
@@ -355,8 +357,8 @@ class BioSound(object):
     # Plays the sound
         play_sound_array(self.sound*(2**15), self.samprate)
             
-    def plot(self, DBNOISE=50, f_low=250, f_high=10000):
-    # Plots a biosound in figures 1, 2, 3
+    def plot(self, DBNOISE=50, f_low=250, f_high=10000, wt_low=-100, wt_high=100):
+    # Plots a biosound in figures 1, 2, 3, 4
     
         # Ploting Variables
         soundlen = np.size(self.sound)
@@ -364,7 +366,7 @@ class BioSound(object):
         t = t*(1000.0/self.samprate)
 
         # Plot the oscillogram + spectrogram
-        plt.figure(1)
+        fig1 = plt.figure(1)
         plt.clf()
         # mngr = plt.get_current_fig_manager()
         # mngr.window.setGeometry(0, 260, 640, 545)
@@ -400,7 +402,7 @@ class BioSound(object):
         plt.ylabel('Frequency (Hz)')
         plt.xlabel('Time (ms)')
                      
-    # Plot the fundamental on the same figure
+         # Plot the fundamental on the same figure
         if self.f0.size != 0 :
             fundplot = self.f0
             diffFund = np.diff(fundplot)
@@ -413,8 +415,8 @@ class BioSound(object):
             plt.plot(self.to*1000.0, self.F3, 'b--', linewidth=3)
         plt.show()
            
-    # Plot Power Spectrum
-        plt.figure(2)
+         # Plot Power Spectrum
+        fig2 = plt.figure(2)
         plt.clf()
         # mngr = plt.get_current_fig_manager()
         # mngr.window.setGeometry(650, 260, 640, 545)
@@ -443,8 +445,8 @@ class BioSound(object):
                 
             plt.show()
   
-    # Table of results
-        plt.figure(3)
+         # Table of results
+        fig3 = plt.figure(3)
         plt.clf()
         # mngr = plt.get_current_fig_manager()
         # mngr.window.setGeometry(320, 10, 640, 250)
@@ -480,11 +482,12 @@ class BioSound(object):
         plt.axis('off')        
         plt.show()
         
-    # Plot Modulation Power spectrum if it exists
+         # Plot Modulation Power spectrum if it exists
     
         #ex = (spectral_freq.min(), spectral_freq.max(), temporal_freq.min(), temporal_freq.max())
+        fig4 = []
         if self.mps.size != 0 :
-            plt.figure(4)
+            fig4 = plt.figure(4)
             plt.clf()
             cmap = plt.get_cmap('jet')
             ex = (self.wt.min(), self.wt.max(), self.wf.min()*1e3, self.wf.max()*1e3)
@@ -497,11 +500,12 @@ class BioSound(object):
             plt.xlabel('Temporal Frequency (Hz)')
             plt.colorbar()
             plt.ylim((0,self.wf.max()*1e3))
+            plt.xlim((wt_low, wt_high))
             plt.title('Modulation Power Spectrum')
             plt.show()
         
         
-        plt.pause(1)   # To flush the plots?
+        return fig1, fig2, fig3, fig4
 
 
 

@@ -315,8 +315,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             empty_string_labels = ['']*len(labels)
             ax.set_yticklabels(empty_string_labels)
         
-        plt.show()
-        plt.savefig('%s/%s.png' % (figdir,titleStr), format='png', dpi=1000)
+        plt.savefig('%s/%s.eps' % (figdir,titleStr), format='eps')
 
 
     # Results
