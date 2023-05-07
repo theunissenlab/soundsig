@@ -20,8 +20,8 @@ from scipy.linalg import inv, toeplitz
 from scipy.optimize import leastsq
 
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.cm as cmap
 import matplotlib.colors as pltcolors
 import matplotlib.mlab as mlab
 
@@ -114,7 +114,7 @@ class WavFile():
         self.analyzed = False
         return self.analyze(min_freq, max_freq, spec_sample_rate, freq_spacing, envelope_cutoff_freq, noise_level_db, rectify, cmplx)
 
-    def plot(self, fig=None, show_envelope=True, min_freq=0.0, max_freq=10000.0, colormap=cmap.gist_yarg, noise_level_db=80,
+    def plot(self, fig=None, show_envelope=True, min_freq=0.0, max_freq=10000.0, colormap=mpl.colormaps['gist_yarg'], noise_level_db=80,
              start_time=0, end_time=np.inf):
 
         self.analyze(min_freq=min_freq, max_freq=max_freq, noise_level_db=noise_level_db)
@@ -534,7 +534,7 @@ def spec_colormap():
         (cmap[ic,0], cmap[ic,1], cmap[ic,2]) = colorsys.hsv_to_rgb(cmap[ic,0], cmap[ic,1], cmap[ic,2])
     
     spec_cmap = pltcolors.ListedColormap(cmap, name=u'SpectroColorMap', N=64)
-    plt.register_cmap(cmap=spec_cmap)
+    mpl.colormaps.register(cmap=spec_cmap, force=True)
 
 def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, colormap=None, colorbar=True, log = True, dBNoise = 50):
     
