@@ -418,8 +418,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         ax.set_yticks(range(nClasses))
         ax.set_yticklabels(classes)
 
-        plt.xlabel('Predictions', fontsize=12)
-        plt.ylabel('Actuals', fontsize=12)
+        plt.xlabel('Predicted Class', fontsize=12)
+        plt.ylabel('Actual Class', fontsize=12)
         plt.title('%s: LDA %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
         
 
@@ -435,8 +435,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         ax.set_yticks(range(nClasses))
         ax.set_yticklabels(classes)
 
-        plt.xlabel('Predictions', fontsize=12)
-        plt.ylabel('Actuals', fontsize=12)
+        plt.xlabel('Predicted Class', fontsize=12)
+        #plt.ylabel('Actual Class', fontsize=12)
         plt.title('%s: QDA %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
                   
         ax = plt.subplot(236)
@@ -451,8 +451,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         ax.set_yticks(range(nClasses))
         ax.set_yticklabels(classes)
 
-        plt.xlabel('Predictions', fontsize=12)
-        plt.ylabel('Actuals', fontsize=12)
+        plt.xlabel('Predicted Class', fontsize=12)
+        #plt.ylabel('Actual Class', fontsize=12)
         plt.title('%s: RF %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
         
         plt.savefig('%s/%s.eps' % (figdir,titleStr), format='eps')

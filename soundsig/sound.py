@@ -54,7 +54,7 @@ class WavFile():
             # If multi-channel collapse
             if mono:
                 if self.num_channels != 1:
-                    self.data = self.data.mean(axis=1)
+                    self.data = self.data[:,0]
                     self.num_channels = 1
 
         self.analyzed = False
@@ -152,8 +152,12 @@ class WavFile():
 class BioSound(object):
     """ Class for representing a communication sound using multiple feature spaces"""
 
-    def __init__(self, soundWave=np.array(0.0), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
+    def __init__(self, soundWave=np.array([0.0]), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
         # Note that all the fields are numpy arrays for saving to h5 files.
+
+        if (len(soundWave.shape) != 1):
+            print('Error: Biosound can only deal with single channel sounds. Returning empty class')
+            soundWave = np.array([0.0])
 
         self.sound = soundWave  # sound pressure waveform 
         self.hashid = np.string_(hashlib.md5(np.array_str(soundWave).encode('utf-8')).hexdigest())
