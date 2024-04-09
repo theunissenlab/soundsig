@@ -12,12 +12,14 @@ from copy import deepcopy
 from math import ceil
 from numpy.fft import fftshift, ifftshift
 
+from numba import jit
+import librosa
 import numpy as np
 from scipy.io.wavfile import read as read_wavfile
 from scipy.fftpack import fft, ifft, fftfreq, fft2, ifft2, dct
 from scipy.signal import resample, firwin, filtfilt
 from scipy.linalg import inv, toeplitz
-from scipy.optimize import leastsq
+from scipy.optimize import leastsq, least_squares
 
 
 import matplotlib.pyplot as plt
@@ -503,8 +505,8 @@ class BioSound(object):
         
         plt.pause(1)   # To flush the plots?
 
-
-
+from functools import lru_cache
+@lru_cache(1)
 def spec_colormap():
 # Makes the colormap that we like for spectrograms
 
@@ -530,7 +532,10 @@ def spec_colormap():
         (cmap[ic,0], cmap[ic,1], cmap[ic,2]) = colorsys.hsv_to_rgb(cmap[ic,0], cmap[ic,1], cmap[ic,2])
     
     spec_cmap = pltcolors.ListedColormap(cmap, name=u'SpectroColorMap', N=64)
-    plt.register_cmap(cmap=spec_cmap)
+    try:
+        plt.register_cmap(cmap=spec_cmap)
+    except Exception as e:
+        print(e)
 
 def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, colormap=None, colorbar=True, log = True, dBNoise = 50):
     
@@ -959,28 +964,22 @@ def plot_mps(spectral_freq, temporal_freq, amp, phase=None):
         plt.title('Phase')
         plt.colorbar()
 
-def synSpect(b, x):
-# Generates a model spectrum made out of gaussian peaks
-# fund, sigma, pkmax, dbfloor
-# global fundGlobal maxFund minFund
 
-    npeaks = np.size(b)-1  # First element of b is the sampling rate
-# amp = 25      # Force 25 dB peaks
+@jit(nopython=True)
+def synSpect(b, x):
+    # Generates a model spectrum made out of gaussian peaks
+    # fund, sigma, pkmax, dbfloor
+    # global fundGlobal maxFund minFund
+
+    npeaks = b.shape[0]-1  # First element of b is the sampling rate
+    # amp = 25      # Force 25 dB peaks
     sdpk = 60    # Force 80 hz width
 
-    synS = np.zeros(len(x))
+    a = b[1:]
+    synS = np.expand_dims(a, -1) * np.exp(-(x-b[0]*np.expand_dims(np.arange(1,npeaks+1), -1))**2/(2*sdpk**2))
+    return synS.sum(axis=0)
 
-
-    for i in range(npeaks):
-        a = b[i+1]   # To inforce positive peaks only
-        synS = synS + a*np.exp(-(x-b[0]*(i+1))**2/(2*sdpk**2))
-    
-    #if (sum(isinf(synS)) + sum(isnan(synS))):
-    #    for i in range(npeaks):
-    #        fprintf(1,'%f ', exp(b(i+1)))    
-    return synS
-
-    
+@jit(nopython=True)
 def residualSyn(vars, x, realS):
     b = vars
     synS = synSpect(b, x)
@@ -990,7 +989,8 @@ def residualSyn(vars, x, realS):
     #if (sum(isinf(synS)) + sum(isnan(synS)))
     #    for i=1:npeaks
     #        fprintf(1,'%f ', exp(b(i+1)))  
-    
+
+#@jit(nopython=True)   
 def lpc(signal, order):
     """Compute the Linear Prediction Coefficients.
 
@@ -1027,6 +1027,427 @@ def lpc(signal, order):
         return np.concatenate(([1.], phi)), None, None
     else:
         return np.ones(1, dtype = signal.dtype), None, None
+
+def _get_window_formants(window,fs,minFormantFreq,maxFormantBW):
+    formants_out = np.nan*np.ones(3)
+    A = librosa.lpc(window, order=8)
+    rts = np.roots(A)
+    rts = rts[np.imag(rts)>=0]  # Keep only half of them
+    angz = np.arctan2(np.imag(rts),np.real(rts))
+
+    # Calculate the frequencies and the bandwidth of the formants
+    frqsFormants = angz*(fs/(2*np.pi))
+    indices = np.argsort(frqsFormants)
+    bw = -0.5*(fs/(2*np.pi))*np.log(np.abs(rts))  # FIXME (kevin): I think this line was broken before... it was using 1/2
+    
+    # Keep formants above 500 Hz and with bandwidth < 500 # This was 1000 for bird calls
+    ind_good_formants = np.where((frqsFormants>minFormantFreq) & (bw<maxFormantBW))[0]
+    formants = frqsFormants[ind_good_formants]
+    # for kk in indices:
+    #     if ( frqsFormants[kk]>minFormantFreq and bw[kk] < maxFormantBW):        
+    #         formants.append(frqsFormants[kk])
+    #         if len(formants) == 3:
+    #             break
+    formants_out[0:min(len(formants),3)] = formants[0:min(len(formants),3)]
+    return formants_out
+
+def formantCalc(soundIn, fs, stride_length=1e-3, lowFc = 200, highFc = 6000, windowFormant = 0.1, minFormantFreq = 500, maxFormantBW = 500):
+    """
+    Estimates the formants of a complex sound.
+    soundIn is the sound pressure waveformlog spectrogram.
+    fs is the sampling rate
+    minFormantFreq = 500  Minimum value of firt formant
+    maxFormantBW = 500    Maxminum value of formants bandwith.
+    windowFormant = 0.1   Time window for Formant calculation.  Includes 5 std of normal window.
+
+    Returns
+           form1   - the first formant, if it exists
+           form2   - the second formant, if it exists
+           form3   - the third formant, if it exists
+    """
+
+    # Use 200 ms for LPC Window - make this a parameter at some point
+    winLen2 = int(np.fix(windowFormant*fs))
+    if (winLen2%2 == 0):  # Make a symmetric window
+        winLen2 += 1
+    gt2, w2 = gaussian_window(winLen2, 5)
+
+    # pad the sound with zeros to make the windowed segments
+    # TODO (logan): stride_length should be set in args
+    stride_length = int(stride_length*fs)
+
+    # Calculate the maximum number of lags for the auto-correlation
+    maxlags = int(2*ceil((float(fs)/minFormantFreq)))
+
+    # pad the sound with zeros to make the windowed segments
+    soundIn_padded_lpc = np.concatenate((np.zeros((winLen2-1)//2),soundIn, np.zeros((winLen2-1)//2)), axis=0)
+    soundIn_windows_lpc = np.lib.stride_tricks.sliding_window_view(soundIn_padded_lpc, winLen2, axis=0)[::stride_length]
+
+    formants = np.apply_along_axis(_get_window_formants, 1, soundIn_windows_lpc, fs, minFormantFreq, maxFormantBW)
+    
+    # Fix formants
+    n3 = np.sum(~np.isnan(formants[:,2]))
+    nt = len(formants)
+    # if (n3 < .1 * len(formants)): # There are only two formants - fix formant 3 by merging...
+    #     meanf12 = np.nanmean(formants[:,0:2], axis=0)
+
+    #     inds_nan = np.isnan(formants)
+
+    #     # first, when f3 is not nan, fix f1 and f2
+    #     inds_nanf3 = inds_nan[:,2]
+    #     df12_23 = np.abs(formants[~inds_nanf3,1:] - meanf12[~inds_nanf3,None])
+    #     inds_df12 = (df12_23[:,0] < df12_23[:,1])
+    #     formants[~inds_nanf3,:][inds_df12,0] = np.mean(formants[~inds_nanf3,:][inds_df12,0:2], axis=1)
+    #     formants[~inds_nanf3,:][inds_df12,1] = formants[~inds_nanf3,:][inds_df12,2]
+    #     formants[~inds_nanf3,:][~inds_df12,1] = np.mean(formants[~inds_nanf3,:][~inds_df12,1:3], axis=1)
+
+    #     # second, when f3 is nan, and f1 or f2 is nan, fix f1 and f2
+    #     inds_nanf2 = inds_nan[:,1]
+    #     inds_nanf1 = inds_nan[:,0]
+    #     inds_one_f = np.logical_and(inds_nanf2, ~inds_nanf1)
+    #     df11 = np.abs(formants[inds_one_f,0] - meanf12[0])
+    #     df12 = np.abs(formants[inds_one_f,0] - meanf12[1])
+    #     inds_df11 = (df11 > df12)
+    #     formants[inds_one_f,:][inds_df11,1] = formants[inds_one_f,:][inds_df11,0]
+    #     formants[inds_one_f,:][~inds_df11,0] = np.nan
+
+    # else:
+    #     # fix cases where only 1 or 2 formants are found
+    #     mean_formants = np.nanmean(formants, axis=0)
+    #     inds_nan = np.isnan(formants)
+    #     inds_nanf3 = inds_nan[:,2]
+    #     inds_nanf2 = inds_nan[:,1]
+    #     inds_nanf1 = inds_nan[:,0]
+    #     inds_one_f = np.logical_and(inds_nanf2, ~inds_nanf1)
+    #     inds_two_f = np.logical_and(~inds_nanf2, ~inds_nanf1)
+
+    #     # in the case one formant is found, lets figure out what formant it is
+    #     df_11_12_13 = np.abs(formants[inds_one_f,0][:,np.newaxis] - mean_formants)
+    #     closest_form_inds = np.argmin(df_11_12_13, axis=1)
+    #     formants[inds_one_f,closest_form_inds] = formants[inds_one_f,0]
+    #     formants[inds_one_f,0][closest_form_inds!=0] = np.nan
+
+    #     # in the case two formants are found, lets figure out what formant is missing
+    #     df_11_12_13 = np.abs(formants[inds_two_f,0][:,np.newaxis] - mean_formants)
+
+    
+    if (n3 < 0.1*nt):   # There are only two formants - fix formant 3 by merging...
+        meanf1 = np.mean(formants[~np.isnan(formants[:,1]),0])
+        meanf2 = np.mean(formants[~np.isnan(formants[:,1]),1])
+        for it in range(nt):
+            if ~np.isnan(formants[it,2]):
+                df12 = np.abs(formants[it,1]-meanf1)
+                df23 = np.abs(formants[it,2]-meanf2)
+                if df12 < df23 :
+                    formants[it,0] = (formants[it,0] + formants[it,1])/2.0
+                    formants[it,1] = formants[it,2]
+                    formants[it,2] = np.nan
+                else:
+                    formants[it,1] = (formants[it,1] + formants[it,2])/2.0
+                    formants[it,2] = np.nan
+            else:    # if there is only one figure out if its second or first
+                if np.isnan(formants[it,1]):
+                    if ~np.isnan(formants[it,0]):
+                        df11 = np.abs(formants[it,0]-meanf1)
+                        df12 = np.abs(formants[it,0]-meanf2)
+                        if (df12 < df11):
+                            formants[it,1] = formants[it,0]
+                            formants[it,0] = np.nan
+    else:
+        meanf1 = np.mean(formants[~np.isnan(formants[:,2]),0])
+        meanf2 = np.mean(formants[~np.isnan(formants[:,2]),1])
+        meanf3 = np.mean(formants[~np.isnan(formants[:,2]),2])
+        for it in range(nt):
+            if np.isnan(formants[it,2]):
+                if np.isnan(formants[it,1]):  # there is only one formant found
+                    if ~np.isnan(formants[it,0]):
+                        df11 = np.abs(formants[it,0]-meanf1)
+                        df12 = np.abs(formants[it,0]-meanf2)
+                        df13 = np.abs(formants[it,0]-meanf3)
+                        if (df13 < np.minimum(df11,df12)):
+                            formants[it,2] = formants[it,0]
+                            formants[it,0] = np.nan
+                        elif (df12 < np.minimum(df11, df13)):
+                            formants[it,1] = formants[it,0]
+                            formants[it,0] = np.nan
+                else:   # two formants are found
+                    df22 = np.abs(formants[it,1]-meanf2)
+                    df23 = np.abs(formants[it,1]-meanf3)
+                    if (df23 < df22):
+                        formants[it,2]  = formants[it,1]
+                        df11 = np.abs(formants[it,0]-meanf1)
+                        df12 = np.abs(formants[it,0]-meanf2)
+                        if (df12 < df11):
+                            formants[it,1] = formants[it,0]
+                            formants[it,0] = np.nan
+                        else:
+                            formants[it,1] = np.nan
+                        
+    return formants
+
+def fund_aca_calc(autocorr, fs, lags, maxFund): 
+     # Calculate the envelope of the auto-correlation after rectification
+    envCorr = temporal_envelope(autocorr, fs, cutoff_freq=maxFund, resample_rate=None) 
+    locsEnvCorr = detect_peaks(envCorr, mph=envCorr.max()/10.0)
+    pksEnvCorr = envCorr[locsEnvCorr]
+    ind0 = int(np.where(lags == 0)[0][0])  # need to find lag zero index
+
+    # default to the autocorrelation peak
+    fundCorrAmpGuess = None
+
+    # Find the peak closest to zero
+    if locsEnvCorr.size > 1:
+        lag_diffs = np.abs(locsEnvCorr - ind0)
+        indIndEnvMax = np.argmin(lag_diffs)             
+        
+        # Take the first peak after the one closest to zero
+        if indIndEnvMax+2 <= len(locsEnvCorr): 
+            indEnvMax = locsEnvCorr[indIndEnvMax+1]
+            if lags[indEnvMax] == 0 :  # This should not happen
+                print('Error: Max Peak in enveloppe auto-correlation found at zero delay')
+            else:
+                fundCorrAmpGuess = fs/lags[indEnvMax]
+    return fundCorrAmpGuess
+
+
+def fund_cep_calc(spectrum, fs, lowFc, highFc, maxFund, minFund):
+    # Calculate cepstrum
+    CY = dct(spectrum, norm = 'ortho')            
+    #CY = ifft(spectrum)
+    tCY = 1000.0*np.array(range(len(CY)))/fs          # Units of Cepstrum in ms
+    fCY = np.zeros(tCY.size)
+    fCY[1:] = 1000.0/tCY[1:] # Corresponding fundamental frequency in Hz.
+    fCY[0] = fs*.5#fs*2.0          # Nyquist limit not infinity
+    lowInd = np.where(fCY<lowFc)[0]
+    if lowInd.size > 0:
+        flowCY = np.where(fCY < lowFc)[0][0]
+    else:
+        flowCY = fCY.size
+        
+    fhighCY = np.where(fCY < highFc)[0][0]
+    # Find peak of Cepstrum
+    indPk = np.where(CY[fhighCY:flowCY] == max(CY[fhighCY:flowCY]))[0][-1]
+    indPk = fhighCY + indPk 
+
+    # Take the values around the peak
+    inds = np.where(CY<=0)[0]
+    upper_bound_ind = np.searchsorted(inds, indPk,side='right')
+    lower_bound_ind = upper_bound_ind - 1
+    upper_bound = inds[upper_bound_ind]
+    lower_bound = inds[lower_bound_ind]+1
+    # 
+    fmass = fCY[lower_bound:upper_bound]*CY[lower_bound:upper_bound]
+    mass = np.sum(CY[lower_bound:upper_bound])
+    fundCepGuess = np.sum(fmass)/mass
+
+    if (fundCepGuess == 0  or np.isnan(fundCepGuess) or np.isinf(fundCepGuess) ):              # Failure of cepstral method
+        return None
+
+    # Force fundamendal to be bounded
+    if (fundCepGuess > maxFund ):
+        fundCepGuess = fundCepGuess / int(fundCepGuess/maxFund + 1)
+
+    elif (fundCepGuess < minFund):
+        fundCepGuess = fundCepGuess * int(minFund/fundCepGuess + 1)
+    return fundCepGuess
+def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lowFc, minFund):
+    winLen = len(window)
+    # remove nans (from padding)
+    window = window[~np.isnan(window)]
+
+    # autocorrelation
+    lags = np.arange(-maxlags, maxlags+1, 1)
+    autoCorr = correlation_function(window,window, lags)
+    ind0 = int(np.where(lags == 0)[0][0])  # need to find lag zero index
+    # find peaks
+    indPeaksCorr = detect_peaks(autoCorr, mph=autoCorr.max()/10.0)
+    
+    # Eliminate center peak and all peaks too close to middle    
+    indPeaksCorr = np.delete(indPeaksCorr,np.where( (indPeaksCorr-ind0) < fs/maxFund)[0])
+    pksCorr = autoCorr[indPeaksCorr]
+
+    # Find max peak
+    if len(pksCorr)==0:
+        pitchSaliency = 0.1               # 0.1 goes with the detection of peaks greater than max/10
+    else:
+        indIndMax = np.where(pksCorr == max(pksCorr))[0][0]
+        indMax = indPeaksCorr[indIndMax]   
+        fundCorrGuess = fs/abs(lags[indMax])
+        pitchSaliency = autoCorr[indMax]/autoCorr[ind0]
+    
+    sal = pitchSaliency
+
+    if sal < minSaliency:
+        return np.array([np.nan, np.nan, sal])
+
+    if method == 'AC':
+        return np.array([fundCorrGuess, np.nan, sal])
+    elif method == 'ACA':
+        fundCorrAmpGuess = fund_aca_calc(autoCorr, fs, lags, maxFund)
+        if fundCorrAmpGuess is None:
+            fundCorrAmpGuess = fundCorrGuess
+        return np.array([fundCorrAmpGuess, sal])
+    else: # method == 'Cep' or method == 'Stack':
+        # CEP AND STACK METHOD
+        Y = fft(window)#, n=winLen+1)
+        f = np.fft.fftfreq(len(window), 1.0/fs)#(winLen+1, 1.0/fs)
+        
+        if method == 'HPS':
+            # Harmonic Product Spectrum
+            npeaks = 6
+            pos_y = np.abs(Y[0:(len(window)//2+1)])#(winLen+1)//2+1])
+            nsamps = int(len(pos_y)//npeaks)
+            Yhps = pos_y[0:nsamps].copy()
+            fHps = f[0:nsamps]
+            for i in range(2, npeaks+1):
+                Yhps *= pos_y[::i][:len(Yhps)]
+            # Take the frequency range we care about
+            freq_inds = np.logical_and(fHps >= lowFc, fHps <= highFc)
+            Yhps_sub = Yhps[freq_inds]
+            fHps_sub = fHps[freq_inds]
+
+            # debug: plt.plot(fHps_sub, Yhps_sub)
+
+            # Find the peaks
+            zscored_peaks = (Yhps_sub - Yhps_sub.mean())/Yhps_sub.std()
+            indPeaksHps = detect_peaks(zscored_peaks, mph=3, mpd=1)
+            #indPeaksHps = np.where(zscored_peaks > 3)[0]
+            peak_heights = zscored_peaks[indPeaksHps]
+            fund_peaks = fHps_sub[indPeaksHps]
+
+            # Sort by peak height
+            # TODO could check here for multiples of the same peak
+            n_funds = min(2, len(fund_peaks))
+            fundHPSGuess = np.nan * np.ones(2)
+            fundHPSGuess[:n_funds] = fund_peaks[np.argsort(peak_heights)[::-1]][:n_funds]
+            
+            # TODO Could return saliency of indiv peaks as well
+            # Force fundamendals to be bounded
+            # fundHPSGuess[fundHPSGuess >= minFund] = fundHPSGuess / np.floor(fundHPSGuess/minFund)
+            # fundHPSGuess[fundHPSGuess <= maxFund] = fundHPSGuess * np.floor(maxFund/fundHPSGuess)
+            return np.concatenate([fundHPSGuess, [sal]])
+
+        
+        #f = (fs/2.0)*(np.array(range(int((winLen+1)/2+1)), dtype=float)/float((winLen+1)//2))
+        fhigh = np.where(f >= highFc)[0][0]
+
+        powSound = 20.0*np.log10(np.abs(Y[0:(winLen+1)//2+1]))    # This is the power spectrum
+        powSoundGood = powSound[0:fhigh]
+        maxPow = max(powSoundGood)
+        powSoundGood = powSoundGood - maxPow   # Set zero as the peak amplitude
+        powSoundGood[powSoundGood < - 60] = -60    
+
+        # Calculate coarse spectral enveloppe
+        p = np.polyfit(f[0:fhigh], powSoundGood, 3)
+        powAmp = np.polyval(p, f[0:fhigh]) 
+
+        # START CEP METHOD
+        fundCepGuess = fund_cep_calc(powSoundGood-powAmp, fs, lowFc, highFc, maxFund, minFund)
+        if fundCepGuess is None:
+            fundCepGuess = fundCorrGuess
+        if method == 'Cep':
+            return np.array([fundCepGuess, sal])
+
+        # START STACK METHOD
+        # Fit Gaussian harmonic stack
+        maxPow = max(powSoundGood-powAmp)
+
+        # This is the matlab code...
+        # fundFitCep = NonLinearModel.fit(f(1:fhigh)', powSoundGood'-powAmp, @synSpect, [fundCepGuess ones(1,9).*log(maxPow)])
+        # modelPowCep = synSpect(double(fundFitCep.Coefficients(:,1)), f(1:fhigh))
+        vars = np.concatenate(([fundCorrGuess], np.ones(9)*np.log(maxPow)))
+        lbounds = np.zeros(10)
+        ubounds = np.ones(10) * maxPow
+        lbounds[0] = minFund
+        ubounds[0] = maxFund
+        bout = least_squares(residualSyn, vars, args = (f[0:fhigh], powSoundGood-powAmp), bounds = (lbounds,ubounds))#,method='lm') 
+        modelPowCep = synSpect(bout.x, f[0:fhigh])# bout[0]
+        errCep = sum((powSoundGood - powAmp - modelPowCep)**2)
+    
+        # vars = np.concatenate(([fundCepGuess*2], np.ones(9)*np.log(maxPow)))
+        # bout2 = leastsq(residualSyn, vars, args = (f[0:fhigh], powSoundGood-powAmp))#,method='lm') 
+        # modelPowCep2 = synSpect(bout2[0], f[0:fhigh]) # bout2.x
+        # errCep2 = sum((powSoundGood - powAmp - modelPowCep2)**2)
+    
+        # if errCep2 < errCep:
+        #     bout = bout2
+        #     modelPowCep =  modelPowCep2
+
+        fundStackGuess = bout.x[0] # bout[0][0] 
+        if (fundStackGuess > maxFund) or (fundStackGuess < minFund ):
+            fundStackGuess = None
+        return np.array([fundStackGuess, sal])
+        # NOTE I AM NOT CACLUATING FUND2
+        # END STACK METHOD
+def fundEstOptim(soundIn, fs, stride_length=None, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.1, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1, method='Stack'):
+     # Band-pass filtering signal prior to auto-correlation
+    soundLen = len(soundIn)
+    nfilt = 1024
+    if soundLen < 1024:
+        print('Warning in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
+        print('Signal will not be filtered - you might want to filter before making Biosound oobject')
+         # return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
+    else:
+        # high pass filter the signal
+        highpassFilter = firwin(nfilt-1, 2.0*lowFc/fs, pass_zero=False)
+        padlen = min(soundLen-10, 3*len(highpassFilter))
+        soundIn = filtfilt(highpassFilter, [1.0], soundIn, padlen=padlen)
+
+        # low pass filter the signal
+        lowpassFilter = firwin(nfilt, 2.0*highFc/fs)
+        padlen = min(soundLen-10, 3*len(lowpassFilter))
+        soundIn = filtfilt(lowpassFilter, [1.0], soundIn, padlen=padlen)
+    
+    #  Calculate the size of the window for the auto-correlation
+    alpha = 5                          # Number of sd in the Gaussian window
+    winLen = int(np.fix((2.0*alpha/minFund)*fs)) * 2  # Length of Gaussian window based on minFund
+    if (winLen%2 == 0):  # Make a symmetric window
+        winLen += 1
+    gt, w = gaussian_window(winLen, alpha)
+
+    # Calculate the maximum number of lags for the auto-correlation
+    maxlags = int(2*ceil((float(fs)/minFund)))
+
+    # pad the sound with zeros to make the windowed segments
+    # TODO (logan): stride_length should be set in args
+    if stride_length is None:
+        stride_length = int(1e-3*fs)
+
+    # use sliding window view to get the windowed segments
+    # TODO: Can use NANs to pad the sound instead of zeros
+    soundIn_padded = np.concatenate((np.nan*np.ones((winLen-1)//2),soundIn, np.nan*np.ones((winLen-1)//2)), axis=0)
+    soundIn_windows = np.lib.stride_tricks.sliding_window_view(soundIn_padded, winLen, axis=0)[::stride_length]*w
+
+    # get rms vals for each window
+    rms_vals = np.nanstd(soundIn_windows,axis=1)#np.sqrt(np.mean(soundIn_windows**2, axis=1))
+    
+    # only take windows with rms above threshold
+    valid_inds = rms_vals > rms_vals.max()*0.01
+    
+    results = np.apply_along_axis(lambda x: process_window(x, maxlags, method, maxFund, fs, minSaliency, highFc,lowFc,minFund), 1, soundIn_windows[valid_inds])
+
+    output = np.ones((soundIn_windows.shape[0], 3))*np.nan
+    output[valid_inds,:] = results
+    return output
+
+
+
+
+        
+    # # calc autocorrelation for each window along lags
+    # lags = np.arange(-maxlags, maxlags+1, 1)
+
+    # acorrs = np.apply_along_axis(lambda x: correlation_function(x,x, lags), 1, soundIn_windows)
+    # indcorrpeaks = np.apply_along_axis(lambda x: detect_peaks(x, mph=x.max()/10.0), 1, acorrs)
+    # print("ok")
+    
+    # # get the formants TODO move this up one
+    # formants = formantCalc(soundIn, fs, stride_length=stride_length, minFormantFreq=minFormantFreq, maxFormantBW=maxFormantBW, windowFormant=windowFormant)
+
+    # # AC Method
+    # if method == 'AC':
+
+
 
 
 def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1, method='Stack'):
@@ -1155,6 +1576,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
     # fundCepGuess - guess from the cepstrum
     # fundStackGuess - guess taken from a fit of the power spectrum with a harmonic stack, using the fundCepGuess as a starting point
     #  Current version use fundStackGuess as the best estimate...
+    
 
     soundlen = 0
     for it in range(nt):
@@ -1371,6 +1793,7 @@ def fundEstimator(soundIn, fs, t=None, debugFig = 0, maxFund = 1500, minFund = 3
 
         vars = np.concatenate(([fundCorrGuess], np.ones(9)*np.log(maxPow)))
         bout = leastsq(residualSyn, vars, args = (f[0:fhigh], powSoundGood-powAmp)) 
+
         modelPowCep = synSpect(bout[0], f[0:fhigh])
         errCep = sum((powSoundGood - powAmp - modelPowCep)**2)
     
