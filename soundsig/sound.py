@@ -20,8 +20,8 @@ from scipy.linalg import inv, toeplitz
 from scipy.optimize import leastsq
 
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.cm as cmap
 import matplotlib.colors as pltcolors
 import matplotlib.mlab as mlab
 
@@ -54,7 +54,7 @@ class WavFile():
             # If multi-channel collapse
             if mono:
                 if self.num_channels != 1:
-                    self.data = self.data.mean(axis=1)
+                    self.data = self.data[:,0]
                     self.num_channels = 1
 
         self.analyzed = False
@@ -114,7 +114,7 @@ class WavFile():
         self.analyzed = False
         return self.analyze(min_freq, max_freq, spec_sample_rate, freq_spacing, envelope_cutoff_freq, noise_level_db, rectify, cmplx)
 
-    def plot(self, fig=None, show_envelope=True, min_freq=0.0, max_freq=10000.0, colormap=cmap.gist_yarg, noise_level_db=80,
+    def plot(self, fig=None, show_envelope=True, min_freq=0.0, max_freq=10000.0, colormap=mpl.colormaps['gist_yarg'], noise_level_db=80,
              start_time=0, end_time=np.inf):
 
         self.analyze(min_freq=min_freq, max_freq=max_freq, noise_level_db=noise_level_db)
@@ -152,8 +152,12 @@ class WavFile():
 class BioSound(object):
     """ Class for representing a communication sound using multiple feature spaces"""
 
-    def __init__(self, soundWave=np.array(0.0), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
+    def __init__(self, soundWave=np.array([0.0]), fs=np.array(0.0), emitter='Unknown', calltype = 'U' ):
         # Note that all the fields are numpy arrays for saving to h5 files.
+
+        if (len(soundWave.shape) != 1):
+            print('Error: Biosound can only deal with single channel sounds. Returning empty class')
+            soundWave = np.array([0.0])
 
         self.sound = soundWave  # sound pressure waveform 
         self.hashid = np.string_(hashlib.md5(np.array_str(soundWave).encode('utf-8')).hexdigest())
@@ -534,7 +538,7 @@ def spec_colormap():
         (cmap[ic,0], cmap[ic,1], cmap[ic,2]) = colorsys.hsv_to_rgb(cmap[ic,0], cmap[ic,1], cmap[ic,2])
     
     spec_cmap = pltcolors.ListedColormap(cmap, name=u'SpectroColorMap', N=64)
-    plt.register_cmap(cmap=spec_cmap)
+    mpl.colormaps.register(cmap=spec_cmap, force=True)
 
 def plot_spectrogram(t, freq, spec, ax=None, ticks=True, fmin=None, fmax=None, colormap=None, colorbar=True, log = True, dBNoise = 50):
     
