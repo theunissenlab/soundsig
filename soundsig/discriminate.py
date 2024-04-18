@@ -9,16 +9,18 @@ from sklearn.model_selection import StratifiedKFold
 from scipy.stats import binom
 
 
-def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None, MINCOUNTTRAINING=5):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
     # X np array n rows x p parameters
     # y group labels n rows
-    # rgb color code for each data point - should be the same for each data beloging to the same group
+    # cval: rgb color code for each data point - should be the same for each data beloging to the same group
     # titleStr title for plots
     # figdir is a directory name (folder name) for figures
     # Xcolname is a np.array or list of strings with column names for printout display
+    # If testind is not specified it will produce a leave one out CV
+    # MINCOUNTTRAINING: minimum number of samples in the training set.  
     # returns: 
     #  ldaYes, qdaYes, rfYes : number of correct detection for lda, qda and random forest
     #  cvCount : number of tests in the cross validation
@@ -28,23 +30,29 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     # classes, nClasses: class labels and number of classes used in classifier
     # weights : PCA weights if dimensionality reduction was used
 
-    # Global Parameters
-    CVFOLDS = 10
-    MINCOUNT = 10
-    MINCOUNTTRAINING = 5
-    # figdir = '/Users/frederictheunissen/Documents/Data/Julie/Acoustical Analysis/Figures Voice'
+
 
     # Initialize Variables and clean up data
     classes, classesCount = np.unique(y, return_counts = True)  # Classes to be discriminated should be same as ldaMod.classes_
-    goodIndClasses = np.array([n >= MINCOUNT for n in classesCount])
-    goodInd = np.array([b in classes[goodIndClasses] for b in y])
+    
+ 
     if testInd is not None:
+        classesTest, classesTestCount = np.unique(y[testInd], return_counts = True)
+        if (len(classes) != len(classesTest)) :
+            print('Warning: some classes are not in the testing set')
+
+        goodIndClasses = np.array([n >= MINCOUNTTRAINING+ntest for n,ntest in zip(classesCount, classesTestCount )])
+        goodInd = np.array([b in classes[goodIndClasses] for b in y])
         # Check for goodInd - should be an np.array of dtype=bool
         # Transform testInd into an index inside xGood and yGood
         testIndx = testInd.nonzero()[0]
         goodIndx = goodInd.nonzero()[0]
         testInd = np.hstack([ np.where(goodIndx == testval)[0] for testval in testIndx])
         trainInd = np.asarray([i for i in range(len(goodIndx)) if i not in testInd])
+    else:
+        goodIndClasses = np.array([n >= MINCOUNTTRAINING+1 for n in classesCount])
+        goodInd = np.array([b in classes[goodIndClasses] for b in y])
+
         
     yGood = y[goodInd]
     XGood = X[goodInd]
@@ -55,15 +63,10 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
 
     # Do we have enough data?  
     if (nClasses < 2):
-        print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT))
+        print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNTTRAINING+1))
         return -1, -1, -1, -1 , -1, -1, -1, -1, -1
     
-    if testInd is None:
-        cvFolds = min(min(classesCount), CVFOLDS)
-        if (cvFolds < CVFOLDS):
-            print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
-    else:
-        cvFolds = 1
+    
    
     # Data size and color values   
     nD = XGood.shape[1]                 # number of features in X
@@ -106,8 +109,17 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     cvCountConf = np.zeros(nClasses)
     
     if testInd is None:
-        skf = StratifiedKFold(n_splits = cvFolds)
-        skfList = skf.split(Xr, yGood)
+        # skf = StratifiedKFold(n_splits = cvFolds) 
+        # skfList = skf.split(Xr, yGood)
+        # Use a leave one out cross-validation
+        skfList = []
+        n = len(yGood)
+        testAll = np.arange(n, dtype=int)
+        for i in range(n) :
+            testInd = np.array([i], dtype=int)
+            trainInd = testAll[testAll != i]
+            skfList.append((trainInd, testInd))
+
     else:
         skfList = [(trainInd,testInd)]
 
