@@ -61,7 +61,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     XGood = X[goodInd]
     cValGood = cVal[goodInd]
         
-    classes, classesCount = np.unique(yGoodTrain, return_counts = True) 
+    classes, classesCount = np.unique(yGood, return_counts = True) 
     nClasses = classes.size         # Number of classes or groups  
 
     # Do we have enough data?  
@@ -72,12 +72,12 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     
    
     # Data size and color values   
-    nD = XGoodTrain.shape[1]                 # number of features in X
-    nX = XGoodTrain.shape[0]                 # number of data points in X
+    nD = XGood.shape[1]                 # number of features in X
+    nX = XGood.shape[0]                 # number of data points in X
     cClasses = []   # Color code for each class
     for cl in classes:
-        icl = (yGoodTrain == cl).nonzero()[0][0]
-        cClasses.append(np.append(cValGoodTrain[icl],1.0))
+        icl = (yGood == cl).nonzero()[0][0]
+        cClasses.append(np.append(cValGood[icl],1.0))
     cClasses = np.asarray(cClasses)
     
     # Use a uniform prior 
