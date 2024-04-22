@@ -23,6 +23,7 @@ from scipy.optimize import leastsq, least_squares
 
 
 import matplotlib as mpl
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltcolors
 import matplotlib.mlab as mlab
