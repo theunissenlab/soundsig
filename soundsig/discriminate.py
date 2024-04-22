@@ -130,9 +130,9 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         n = len(yGood)
         testAll = np.arange(n, dtype=int)
         for i in range(n) :
-            testInd = np.array([i], dtype=int)
-            trainInd = testAll[testAll != i]
-            skfList.append((trainInd, testInd))
+            test = np.array([i], dtype=int)
+            train = testAll[testAll != i]
+            skfList.append((train, test))
 
     else:
         skfList = [(trainInd,testInd)]
@@ -458,18 +458,20 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         for i in range(conf_matrix.shape[0]):
             conf_matrix[i,:] = conf_matrix[i,:]/cvCountConf[i]
     
-        ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3, vmin = pmin, vmax = pmax)
+        im = ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3, vmin = pmin, vmax = pmax)
+        
 
         ax.set_xticks(range(nClasses))
         ax.set_xticklabels(classes)
         ax.set_yticks(range(nClasses))
         ax.set_yticklabels(classes)
+        # plt.colorbar(im, ax = ax)
 
         plt.xlabel('Predicted Class', fontsize=12)
         #plt.ylabel('Actual Class', fontsize=12)
         plt.title('%s: RF %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
-        
         plt.savefig('%s/%s.eps' % (figdir,titleStr), format='eps')
+
 
 
     # Results
