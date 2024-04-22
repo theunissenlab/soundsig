@@ -9,62 +9,85 @@ from sklearn.model_selection import StratifiedKFold
 from scipy.stats import binom
 
 
-def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None, MINCOUNTTRAINING=5):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
     # X np array n rows x p parameters
     # y group labels n rows
-    # rgb color code for each data point - should be the same for each data beloging to the same group
+    # cval: rgb color code for each data point - should be the same for each data beloging to the same group
     # titleStr title for plots
     # figdir is a directory name (folder name) for figures
     # Xcolname is a np.array or list of strings with column names for printout display
-    # returns: ldaScore, ldaScoreSE, qdaScore, qdaScoreSE, rfScore, rfScoreSE, nClasses
+    # If testind is not specified it will produce a leave one out CV
+    # MINCOUNTTRAINING: minimum number of samples in the training set.  
+    # returns: 
+    #  ldaYes, qdaYes, rfYes : number of correct detection for lda, qda and random forest
+    #  cvCount : number of tests in the cross validation
+    #  ldaP, qdaP, rfP : probability of correct classification for lda, qda and rf
+    # ldaConf, qdaConf, rfConf: unnormalized confusion matrices of size nClasses by nClasses based on posterior from each of the classfiers
+    # cvCountConf: vector of test for each classifer
+    # classes, nClasses: class labels and number of classes used in classifier
+    # weights : PCA weights if dimensionality reduction was used
 
-    # Global Parameters
-    CVFOLDS = 10
-    MINCOUNT = 10
-    MINCOUNTTRAINING = 5
-    # figdir = '/Users/frederictheunissen/Documents/Data/Julie/Acoustical Analysis/Figures Voice'
+
 
     # Initialize Variables and clean up data
     classes, classesCount = np.unique(y, return_counts = True)  # Classes to be discriminated should be same as ldaMod.classes_
-    goodIndClasses = np.array([n >= MINCOUNT for n in classesCount])
-    goodInd = np.array([b in classes[goodIndClasses] for b in y])
+    
+ 
     if testInd is not None:
+        classesTest, classesTestCount = np.unique(y[testInd], return_counts = True)
+        if (len(classes) != len(classesTest)) :
+            print('Warning: some classes are not in the testing set')
+
+        goodIndClasses = np.array([n >= MINCOUNTTRAINING+ntest for n,ntest in zip(classesCount, classesTestCount )])
+        goodInd = np.array([b in classes[goodIndClasses] for b in y])
         # Check for goodInd - should be an np.array of dtype=bool
         # Transform testInd into an index inside xGood and yGood
-        testIndx = testInd.nonzero()[0]
+        if testInd.dtype == 'bool':
+            testIndx = testInd.nonzero()[0]
+        else:
+            testIndx = testInd
         goodIndx = goodInd.nonzero()[0]
         testInd = np.hstack([ np.where(goodIndx == testval)[0] for testval in testIndx])
         trainInd = np.asarray([i for i in range(len(goodIndx)) if i not in testInd])
+
+    else:
+        goodIndClasses = np.array([n >= MINCOUNTTRAINING+1 for n in classesCount])
+        goodInd = np.array([b in classes[goodIndClasses] for b in y])
+
         
     yGood = y[goodInd]
     XGood = X[goodInd]
     cValGood = cVal[goodInd]
+
+    if testInd is not None:
+        yGoodTrain = yGood[trainInd]
+        XGoodTrain = XGood[trainInd]
+        cValGoodTrain = cValGood[trainInd]
+    else:
+        yGoodTrain = yGood
+        XGoodTrain = XGood
+        cValGoodTrain = cValGood
+
         
-    classes, classesCount = np.unique(yGood, return_counts = True) 
+    classes, classesCount = np.unique(yGoodTrain, return_counts = True) 
     nClasses = classes.size         # Number of classes or groups  
 
     # Do we have enough data?  
     if (nClasses < 2):
-        print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNT))
+        print ('Error in ldaPLot: Insufficient classes with minimun data (%d) for discrimination analysis' % (MINCOUNTTRAINING+1))
         return -1, -1, -1, -1 , -1, -1, -1, -1, -1
     
-    if testInd is None:
-        cvFolds = min(min(classesCount), CVFOLDS)
-        if (cvFolds < CVFOLDS):
-            print ('Warning in ldaPlot: Cross-validation performed with %d folds (instead of %d)' % (cvFolds, CVFOLDS))
-    else:
-        cvFolds = 1
-   
+    
     # Data size and color values   
-    nD = XGood.shape[1]                 # number of features in X
-    nX = XGood.shape[0]                 # number of data points in X
+    nD = XGoodTrain.shape[1]                 # number of features in X
+    nX = XGoodTrain.shape[0]                 # number of data points in X
     cClasses = []   # Color code for each class
     for cl in classes:
-        icl = (yGood == cl).nonzero()[0][0]
-        cClasses.append(np.append(cValGood[icl],1.0))
+        icl = (yGoodTrain == cl).nonzero()[0][0]
+        cClasses.append(np.append(cValGoodTrain[icl],1.0))
     cClasses = np.asarray(cClasses)
     
     # Use a uniform prior 
@@ -76,7 +99,8 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         print ('Warning: Insufficient data for', nD, 'parameters. PCA projection to', nDmax, 'dimensions.' )
     nDmax = min(nD, nDmax)
     pca = PCA(n_components=nDmax)
-    Xr = pca.fit_transform(XGood)
+    pca.fit(XGoodTrain)
+    Xr = pca.transform(XGood)
     print ('Variance explained is %.2f%%' % (sum(pca.explained_variance_ratio_)*100.0))
     
     
@@ -84,19 +108,35 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     ldaMod = LDA(n_components = min(nDmax,nClasses-1), priors = myPrior, shrinkage = None, solver = 'svd') 
     qdaMod = QDA(priors = myPrior)
     rfMod = RF()   # by default assumes equal weights
-
-        
+       
     # Perform CVFOLDS fold cross-validation to get performance of classifiers.
+    # Performance is estimate based on correct detections and posterior probability
     ldaYes = 0
     qdaYes = 0
     rfYes = 0
     cvCount = 0
+
+    # Find the number of Classes that could be used in training.
+    ldaConf = np.zeros((nClasses,nClasses))
+    qdaConf = np.zeros((nClasses,nClasses))
+    rfConf = np.zeros((nClasses,nClasses))
+    cvCountConf = np.zeros(nClasses)
     
     if testInd is None:
-        skf = StratifiedKFold(n_splits = cvFolds)
-        skfList = skf.split(Xr, yGood)
+        # skf = StratifiedKFold(n_splits = cvFolds) 
+        # skfList = skf.split(Xr, yGood)
+        # Use a leave one out cross-validation
+        skfList = []
+        n = len(yGood)
+        testAll = np.arange(n, dtype=int)
+        for i in range(n) :
+            testInd = np.array([i], dtype=int)
+            trainInd = testAll[testAll != i]
+            skfList.append((trainInd, testInd))
+
     else:
         skfList = [(trainInd,testInd)]
+
     
     for train, test in skfList:
         
@@ -131,15 +171,52 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
         ldaYes += np.around((ldaMod.score(Xr[test[goodInd]], yGood[test[goodInd]]))*goodInd.size)
         qdaYes += np.around((qdaMod.score(Xr[test[goodInd]], yGood[test[goodInd]]))*goodInd.size)
         rfYes += np.around((rfMod.score(Xr[test[goodInd]], yGood[test[goodInd]]))*goodInd.size)
+
+        
+        for itest in test[goodInd]:
+            icl = np.argwhere(classes == yGood[itest])[0]
+            ldaConf[icl, :] += ldaMod.predict_proba(Xr[itest,:].reshape(1,-1))[0]
+            qdaConf[icl, :] += qdaMod.predict_proba(Xr[itest,:].reshape(1,-1))[0]
+            rfConf[icl, :] += rfMod.predict_proba(Xr[itest,:].reshape(1,-1))[0]
+            cvCountConf[icl] += 1
+
         cvCount += goodInd.size
 
 
       
-# Refit with all the data  for the plots
+# Refit with all the data  for the plots unless testInd is specified
+    if testInd is None:
+        ldaMod.priors = myPrior
+        qdaMod.priors = myPrior
+        Xrr = ldaMod.fit_transform(Xr, yGood)
+        print('DFA calculated with %d points' % Xrr.shape[0])
+    else: 
         
-    ldaMod.priors = myPrior
-    qdaMod.priors = myPrior
-    Xrr = ldaMod.fit_transform(Xr, yGood)
+        # Use the test/train requested for the plots too
+        trainClasses, trainCount = np.unique(yGood[trainInd], return_counts=True)
+        goodIndClasses = np.array([n >= MINCOUNTTRAINING for n in trainCount])
+        goodIndTrain = np.array([b in trainClasses[goodIndClasses] for b in yGood[trainInd]])
+
+        # Specity the training data set, the number of groups and priors
+        yTrain = yGood[train[goodIndTrain]]
+        XrTrain = Xr[train[goodIndTrain]]
+
+        trainClasses, trainCount = np.unique(yTrain, return_counts=True) 
+        ntrainClasses = trainClasses.size
+
+        # Fit the data
+        trainPriors = np.ones(ntrainClasses)*(1.0/ntrainClasses)
+        ldaMod.priors = trainPriors
+        qdaMod.priors = trainPriors
+        Xrr = ldaMod.fit_transform(XrTrain, yTrain)
+        print('DFA calculated with %d points' % Xrr.shape[0])
+
+        goodInd = np.array([b in trainClasses for b in yGood[testInd]]) 
+        XrrTest = ldaMod.transform(Xr[testInd[goodInd]])
+        cValGoodTest = cValGood[testInd[goodInd]]
+      
+
+
     # Check labels
     for a, b in zip(classes, ldaMod.classes_):
         if a != b:
@@ -177,9 +254,15 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     if plotFig:
         dimVal = 0.8    # Overall diming of background so that points can be seen
         # Obtain fits in this rotated space for display purposes   
-        ldaMod.fit(Xrr, yGood)    
-        qdaMod.fit(Xrr, yGood)
-        rfMod.fit(Xrr, yGood)
+        
+        if testInd is None:
+            ldaMod.fit(Xrr, yGood)    
+            qdaMod.fit(Xrr, yGood)
+            rfMod.fit(Xrr, yGood)
+        else:
+            ldaMod.fit(Xrr, yTrain) 
+            qdaMod.fit(Xrr, yTrain)        
+            rfMod.fit(Xrr, yTrain)
     
         XrrMean = Xrr.mean(0)
                 
@@ -217,14 +300,21 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             XmcLDA[ix,3] = (cWeight.max()/maxLDA)*dimVal
     
         # Plot the surface of probability    
-        plt.figure(facecolor='white', figsize=(10,4))
-        plt.subplot(131)
+        plt.figure(facecolor='white', figsize=(10,8))
+        plt.subplot(231)
         Zplot = XmcLDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
         plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
         if nClasses > 2:
-            plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
+            if testInd is not None:
+                plt.scatter(XrrTest[:,0], XrrTest[:,1], c=cValGoodTest, s=40, zorder=1)      
+            else:
+                plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
         else:
-            plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            if testInd is not None:
+                plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            else:
+                plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+
         plt.title('%s: LDA %d/%d' % (titleStr, ldaYes, cvCount))
         plt.axis('square')
         plt.xlim((-6, 6))
@@ -255,13 +345,19 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     
         # Plot the surface of probability  
 
-        plt.subplot(132)
+        plt.subplot(232)
         Zplot = XmcQDA.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
         plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
         if nClasses > 2:
-            plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
+            if testInd is not None:
+                plt.scatter(XrrTest[:,0], XrrTest[:,1], c=cValGoodTest, s=40, zorder=1)      
+            else:
+                plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
         else:
-            plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            if testInd is not None:
+                plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            else:
+                plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
         plt.title('%s: QDA %d/%d' % (titleStr, qdaYes, cvCount))
         plt.xlabel('DFA 1')
         plt.ylabel('DFA 2')
@@ -288,14 +384,20 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             XmcRF[ix,:] = np.dot(cWinner*cWeight, cClasses)
             XmcRF[ix,3] = (cWeight.max()/maxRF)*dimVal
     
-    # Plot the surface of probability    
-        plt.subplot(133)
+        # Plot the surface of probability    
+        plt.subplot(233)
         Zplot = XmcRF.reshape(np.shape(x1)[0], np.shape(x1)[1],4)
         plt.imshow(Zplot, zorder=0, extent=[-6, 6, -6, 6], origin='lower', interpolation='none', aspect='auto')
-        if nClasses > 2:    
-            plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
+        if nClasses > 2:
+            if testInd is not None:
+                plt.scatter(XrrTest[:,0], XrrTest[:,1], c=cValGoodTest, s=40, zorder=1)      
+            else:
+                plt.scatter(Xrr[:,0], Xrr[:,1], c=cValGood, s=40, zorder=1)
         else:
-            plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            if testInd is not None:
+                plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
+            else:
+                plt.scatter(Xrr,(np.random.rand(Xrr.size)-0.5)*12.0 , c=cValGood, s=40, zorder=1) 
             
         plt.title('%s: RF %d/%d' % (titleStr, rfYes, cvCount))
         plt.xlabel('DFA 1')
@@ -314,9 +416,60 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
             labels = [item.get_text() for item in ax.get_yticklabels()]
             empty_string_labels = ['']*len(labels)
             ax.set_yticklabels(empty_string_labels)
+
+        ax = plt.subplot(234)
+        # Use this for color scale
+        pmin = 1/nClasses
+        pmax = pmin+ (1.0-pmin)/2.0
+        conf_matrix = np.copy(ldaConf)
+        for i in range(conf_matrix.shape[0]):
+            conf_matrix[i,:] = conf_matrix[i,:]/cvCountConf[i]
+    
+        ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3, vmin = pmin, vmax = pmax)
+
+        ax.set_xticks(range(nClasses))
+        ax.set_xticklabels(classes)
+        ax.set_yticks(range(nClasses))
+        ax.set_yticklabels(classes)
+
+        plt.xlabel('Predicted Class', fontsize=12)
+        plt.ylabel('Actual Class', fontsize=12)
+        plt.title('%s: LDA %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
         
-        plt.show()
-        plt.savefig('%s/%s.png' % (figdir,titleStr), format='png', dpi=1000)
+
+        ax = plt.subplot(235)
+        conf_matrix = np.copy(qdaConf)
+        for i in range(conf_matrix.shape[0]):
+            conf_matrix[i,:] = conf_matrix[i,:]/cvCountConf[i]
+    
+        ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3, vmin = pmin, vmax = pmax)
+
+        ax.set_xticks(range(nClasses))
+        ax.set_xticklabels(classes)
+        ax.set_yticks(range(nClasses))
+        ax.set_yticklabels(classes)
+
+        plt.xlabel('Predicted Class', fontsize=12)
+        #plt.ylabel('Actual Class', fontsize=12)
+        plt.title('%s: QDA %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
+                  
+        ax = plt.subplot(236)
+        conf_matrix = np.copy(rfConf)
+        for i in range(conf_matrix.shape[0]):
+            conf_matrix[i,:] = conf_matrix[i,:]/cvCountConf[i]
+    
+        ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3, vmin = pmin, vmax = pmax)
+
+        ax.set_xticks(range(nClasses))
+        ax.set_xticklabels(classes)
+        ax.set_yticks(range(nClasses))
+        ax.set_yticklabels(classes)
+
+        plt.xlabel('Predicted Class', fontsize=12)
+        #plt.ylabel('Actual Class', fontsize=12)
+        plt.title('%s: RF %.2f %%' % (titleStr, 100.0*np.mean(np.diag(conf_matrix))), fontsize=12)
+        
+        plt.savefig('%s/%s.eps' % (figdir,titleStr), format='eps')
 
 
     # Results
@@ -342,5 +495,5 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     print ("%s LDA: %.2f %% (%d/%d p=%.4f)" % (titleStr, 100.0*ldaYes/cvCount, ldaYes, cvCount, ldaP))
     print ("%s QDA: %.2f %% (%d/%d p=%.4f)" % (titleStr, 100.0*qdaYes/cvCount, qdaYes, cvCount, qdaP))
     print ("%s RF: %.2f %% (%d/%d p=%.4f)" % (titleStr, 100.0*rfYes/cvCount, rfYes, cvCount, rfP))
-    return ldaYes, qdaYes, rfYes, cvCount, ldaP, qdaP, rfP, nClasses, weights
+    return ldaYes, qdaYes, rfYes, cvCount, ldaP, qdaP, rfP, ldaConf, qdaConf, rfConf, cvCountConf, classes, nClasses, weights
 
