@@ -315,7 +315,29 @@ class BioSound(object):
         self.tAmp = tdata
         self.amp = amp
         self.maxAmp = max(amp)
-        
+    def calc_fundamental(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, method='HPS'):
+        funds_salience = fundEstOptim(self.sound, self.samprate, maxFund = maxFund, minFund = minFund, lowFc = lowFc, highFc = highFc, minSaliency = minSaliency, method = method)
+        self.f0 = funds_salience[:,0]
+        self.f0_2 = funds_salience[:,1]
+        self.sal = funds_salience[:,2]
+        self.sal_2 = funds_salience[:,3]
+        self.fund = np.nanmean(funds_salience[:,0])
+        self.meansal = np.nanmean(funds_salience[:,2])
+        self.fund2 = np.nanmean(funds_salience[:,1])
+        self.meansal2 = np.nanmean(funds_salience[:,3])
+        self.maxfund = np.nanmax(self.f0)
+        self.minfund = np.nanmin(self.f0)
+        self.cvfund = np.nanstd(self.f0)/self.fund
+        self.cvfund2 = np.nanstd(self.f0_2)/self.fund2
+        #self.voice2percent = np.nanmean(funds_salience[:,4])*100
+
+    def calc_formants(self,  lowFc = 200, highFc = 6000, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1):
+        formants = formantEstimator(self.sound, self.samprate, lowFc=lowFc, highFc=highFc, windowFormant = windowFormant,
+                                     minFormantFreq = minFormantFreq, maxFormantBW = maxFormantBW )
+        self.F1 = formants[:,0]
+        self.F2 = formants[:,1]
+        self.F3 = formants[:,2]
+
     def fundest(self, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.5, debugFig = 0, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1, method='Stack'):
     # Calculate the fundamental, the formants and parameters related to these
     
@@ -1029,8 +1051,11 @@ def lpc(signal, order):
         return np.ones(1, dtype = signal.dtype), None, None
 
 def _get_window_formants(window,fs,minFormantFreq,maxFormantBW):
+    window = window[~np.isnan(window)]
+
     formants_out = np.nan*np.ones(3)
     A = librosa.lpc(window, order=8)
+    #A, E, K = lpc(window, 8)
     rts = np.roots(A)
     rts = rts[np.imag(rts)>=0]  # Keep only half of them
     angz = np.arctan2(np.imag(rts),np.real(rts))
@@ -1043,6 +1068,8 @@ def _get_window_formants(window,fs,minFormantFreq,maxFormantBW):
     # Keep formants above 500 Hz and with bandwidth < 500 # This was 1000 for bird calls
     ind_good_formants = np.where((frqsFormants>minFormantFreq) & (bw<maxFormantBW))[0]
     formants = frqsFormants[ind_good_formants]
+    # now sort by frequency
+    formants = formants[np.argsort(formants)]
     # for kk in indices:
     #     if ( frqsFormants[kk]>minFormantFreq and bw[kk] < maxFormantBW):        
     #         formants.append(frqsFormants[kk])
@@ -1051,7 +1078,7 @@ def _get_window_formants(window,fs,minFormantFreq,maxFormantBW):
     formants_out[0:min(len(formants),3)] = formants[0:min(len(formants),3)]
     return formants_out
 
-def formantCalc(soundIn, fs, stride_length=1e-3, lowFc = 200, highFc = 6000, windowFormant = 0.1, minFormantFreq = 500, maxFormantBW = 500):
+def formantEstimator(soundIn, fs, stride_length=None, nofilt=False, lowFc = 200, highFc = 6000, windowFormant = 0.1, minFormantFreq = 500, maxFormantBW = 500):
     """
     Estimates the formants of a complex sound.
     soundIn is the sound pressure waveformlog spectrogram.
@@ -1065,6 +1092,25 @@ def formantCalc(soundIn, fs, stride_length=1e-3, lowFc = 200, highFc = 6000, win
            form2   - the second formant, if it exists
            form3   - the third formant, if it exists
     """
+    # Band-pass filtering signal prior to auto-correlation
+    soundLen = len(soundIn)
+    nfilt = 1024
+    if nofilt:
+        soundIn = soundIn
+    elif soundLen < 1024:
+        print('Warning in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
+        print('Signal will not be filtered - you might want to filter before making Biosound oobject')
+         # return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
+    else:
+        # high pass filter the signal
+        highpassFilter = firwin(nfilt-1, 2.0*lowFc/fs, pass_zero=False)
+        padlen = min(soundLen-10, 3*len(highpassFilter))
+        soundIn = filtfilt(highpassFilter, [1.0], soundIn, padlen=padlen)
+
+        # low pass filter the signal
+        lowpassFilter = firwin(nfilt, 2.0*highFc/fs)
+        padlen = min(soundLen-10, 3*len(lowpassFilter))
+        soundIn = filtfilt(lowpassFilter, [1.0], soundIn, padlen=padlen)
 
     # Use 200 ms for LPC Window - make this a parameter at some point
     winLen2 = int(np.fix(windowFormant*fs))
@@ -1074,17 +1120,25 @@ def formantCalc(soundIn, fs, stride_length=1e-3, lowFc = 200, highFc = 6000, win
 
     # pad the sound with zeros to make the windowed segments
     # TODO (logan): stride_length should be set in args
-    stride_length = int(stride_length*fs)
+    if stride_length is None:
+        stride_length = int(1e-3*fs)
 
     # Calculate the maximum number of lags for the auto-correlation
     maxlags = int(2*ceil((float(fs)/minFormantFreq)))
 
     # pad the sound with zeros to make the windowed segments
     soundIn_padded_lpc = np.concatenate((np.zeros((winLen2-1)//2),soundIn, np.zeros((winLen2-1)//2)), axis=0)
-    soundIn_windows_lpc = np.lib.stride_tricks.sliding_window_view(soundIn_padded_lpc, winLen2, axis=0)[::stride_length]
-
-    formants = np.apply_along_axis(_get_window_formants, 1, soundIn_windows_lpc, fs, minFormantFreq, maxFormantBW)
+    soundIn_windows_lpc = np.lib.stride_tricks.sliding_window_view(soundIn_padded_lpc, winLen2, axis=0)[::stride_length] * w2
+    # get rms vals for each window
+    rms_vals = np.nanstd(soundIn_windows_lpc,axis=1)#np.sqrt(np.mean(soundIn_windows**2, axis=1))
     
+    # only take windows with rms above threshold
+    valid_inds = rms_vals > rms_vals.max()*0.1
+
+    results = np.apply_along_axis(_get_window_formants, 1, soundIn_windows_lpc[valid_inds], fs, minFormantFreq, maxFormantBW)
+    formants = np.ones((soundIn_windows_lpc.shape[0], 3))*np.nan
+    formants[valid_inds,:] = results
+
     # Fix formants
     n3 = np.sum(~np.isnan(formants[:,2]))
     nt = len(formants)
@@ -1250,6 +1304,7 @@ def fund_cep_calc(spectrum, fs, lowFc, highFc, maxFund, minFund):
     elif (fundCepGuess < minFund):
         fundCepGuess = fundCepGuess * int(minFund/fundCepGuess + 1)
     return fundCepGuess
+i=0
 def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lowFc, minFund):
     winLen = len(window)
     # remove nans (from padding)
@@ -1278,15 +1333,15 @@ def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lo
     sal = pitchSaliency
 
     if sal < minSaliency:
-        return np.array([np.nan, np.nan, sal])
+        return np.array([np.nan, np.nan, sal, np.nan])
 
     if method == 'AC':
-        return np.array([fundCorrGuess, np.nan, sal])
+        return np.array([fundCorrGuess, np.nan, sal, np.nan])
     elif method == 'ACA':
         fundCorrAmpGuess = fund_aca_calc(autoCorr, fs, lags, maxFund)
         if fundCorrAmpGuess is None:
             fundCorrAmpGuess = fundCorrGuess
-        return np.array([fundCorrAmpGuess, sal])
+        return np.array([fundCorrAmpGuess, np.nan, sal, np.nan])
     else: # method == 'Cep' or method == 'Stack':
         # CEP AND STACK METHOD
         Y = fft(window)#, n=winLen+1)
@@ -1294,7 +1349,7 @@ def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lo
         
         if method == 'HPS':
             # Harmonic Product Spectrum
-            npeaks = 6
+            npeaks = 7
             pos_y = np.abs(Y[0:(len(window)//2+1)])#(winLen+1)//2+1])
             nsamps = int(len(pos_y)//npeaks)
             Yhps = pos_y[0:nsamps].copy()
@@ -1306,26 +1361,44 @@ def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lo
             Yhps_sub = Yhps[freq_inds]
             fHps_sub = fHps[freq_inds]
 
-            # debug: plt.plot(fHps_sub, Yhps_sub)
 
             # Find the peaks
             zscored_peaks = (Yhps_sub - Yhps_sub.mean())/Yhps_sub.std()
-            indPeaksHps = detect_peaks(zscored_peaks, mph=3, mpd=1)
+            indPeaksHps = detect_peaks(zscored_peaks, mph=3, mpd=2)
+            # plt.figure()
+            # plt.plot(fHps_sub, Yhps_sub)
+
             #indPeaksHps = np.where(zscored_peaks > 3)[0]
-            peak_heights = zscored_peaks[indPeaksHps]
+            #peak_heights = zscored_peaks[indPeaksHps]
+            peak_heights = Yhps_sub[indPeaksHps]
             fund_peaks = fHps_sub[indPeaksHps]
 
+            # remove peaks smaller than 1
+            fund_peaks = fund_peaks[peak_heights > 1]
+            peak_heights = peak_heights[peak_heights > 1]
+
+            # remove multiples
+            if len(fund_peaks) > 1:
+                fund_mults = fund_peaks[:,np.newaxis] / fund_peaks[np.newaxis,:]
+                isint = np.abs(fund_mults - np.round(fund_mults)) < .1 - np.eye(len(fund_peaks))
+                isint = np.any(isint, axis=1)
+                fund_peaks = fund_peaks[~isint]
+                peak_heights = peak_heights[~isint]
+            
             # Sort by peak height
             # TODO could check here for multiples of the same peak
             n_funds = min(2, len(fund_peaks))
             fundHPSGuess = np.nan * np.ones(2)
-            fundHPSGuess[:n_funds] = fund_peaks[np.argsort(peak_heights)[::-1]][:n_funds]
+            kept_peaks = np.sort(np.argsort(peak_heights)[::-1][:n_funds])
+            fundHPSGuess[:n_funds] = fund_peaks[kept_peaks][:n_funds]
+            peak_sal = np.nan * np.ones(2)
+            peak_sal[:n_funds] = peak_heights[kept_peaks][:n_funds]
             
             # TODO Could return saliency of indiv peaks as well
             # Force fundamendals to be bounded
             # fundHPSGuess[fundHPSGuess >= minFund] = fundHPSGuess / np.floor(fundHPSGuess/minFund)
             # fundHPSGuess[fundHPSGuess <= maxFund] = fundHPSGuess * np.floor(maxFund/fundHPSGuess)
-            return np.concatenate([fundHPSGuess, [sal]])
+            return np.concatenate([fundHPSGuess, peak_sal])
 
         
         #f = (fs/2.0)*(np.array(range(int((winLen+1)/2+1)), dtype=float)/float((winLen+1)//2))
@@ -1346,7 +1419,7 @@ def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lo
         if fundCepGuess is None:
             fundCepGuess = fundCorrGuess
         if method == 'Cep':
-            return np.array([fundCepGuess, sal])
+            return np.array([fundCepGuess, np.nan, sal, np.nan])
 
         # START STACK METHOD
         # Fit Gaussian harmonic stack
@@ -1376,14 +1449,16 @@ def process_window(window, maxlags, method, maxFund, fs, minSaliency, highFc, lo
         fundStackGuess = bout.x[0] # bout[0][0] 
         if (fundStackGuess > maxFund) or (fundStackGuess < minFund ):
             fundStackGuess = None
-        return np.array([fundStackGuess, sal])
-        # NOTE I AM NOT CACLUATING FUND2
-        # END STACK METHOD
-def fundEstOptim(soundIn, fs, stride_length=None, maxFund = 1500, minFund = 300, lowFc = 200, highFc = 6000, minSaliency = 0.1, minFormantFreq = 500, maxFormantBW = 500, windowFormant = 0.1, method='Stack'):
+        # TODO add form2 here
+        return np.array([fundStackGuess, np.nan, sal, np.nan])
+
+def fundEstOptim(soundIn, fs, stride_length=None, maxFund = 1500, minFund = 300, nofilt=False, lowFc = 200, highFc = 6000, minSaliency = 0.1, method='HPS'):
      # Band-pass filtering signal prior to auto-correlation
     soundLen = len(soundIn)
     nfilt = 1024
-    if soundLen < 1024:
+    if nofilt:
+        soundIn = soundIn
+    elif soundLen < 1024:
         print('Warning in fundEstimator: sound too short for bandpass filtering, len(soundIn)=%d' % soundLen)
         print('Signal will not be filtered - you might want to filter before making Biosound oobject')
          # return (np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([]), soundLen)
@@ -1400,11 +1475,11 @@ def fundEstOptim(soundIn, fs, stride_length=None, maxFund = 1500, minFund = 300,
     
     #  Calculate the size of the window for the auto-correlation
     alpha = 5                          # Number of sd in the Gaussian window
-    winLen = int(np.fix((2.0*alpha/minFund)*fs)) * 2  # Length of Gaussian window based on minFund
+    winLen = int(np.fix((2.0*alpha/minFund)*fs)) # Length of Gaussian window based on minFund
     if (winLen%2 == 0):  # Make a symmetric window
         winLen += 1
-    gt, w = gaussian_window(winLen, alpha)
-
+    #gt, w = gaussian_window(winLen, alpha)
+    w = np.hanning(winLen)
     # Calculate the maximum number of lags for the auto-correlation
     maxlags = int(2*ceil((float(fs)/minFund)))
 
@@ -1422,11 +1497,11 @@ def fundEstOptim(soundIn, fs, stride_length=None, maxFund = 1500, minFund = 300,
     rms_vals = np.nanstd(soundIn_windows,axis=1)#np.sqrt(np.mean(soundIn_windows**2, axis=1))
     
     # only take windows with rms above threshold
-    valid_inds = rms_vals > rms_vals.max()*0.01
+    valid_inds = rms_vals > rms_vals.max()*0.1
     
     results = np.apply_along_axis(lambda x: process_window(x, maxlags, method, maxFund, fs, minSaliency, highFc,lowFc,minFund), 1, soundIn_windows[valid_inds])
 
-    output = np.ones((soundIn_windows.shape[0], 3))*np.nan
+    output = np.ones((soundIn_windows.shape[0], 4))*np.nan
     output[valid_inds,:] = results
     return output
 
