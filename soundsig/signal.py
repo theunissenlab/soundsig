@@ -501,7 +501,14 @@ def phase_locking_value(z1, z2):
 
     return plv
 
+from numba import jit
+@jit(nopython=True)
+def matlab_std(x):
+    # instead of using np.std(ddof=1), which is slow, we use this function which is faster
+    # and numba can optimize this function
+    return np.sqrt(np.sum(np.square(x - np.mean(x))) / (x.shape[0] - 1))
 
+@jit(nopython=True)
 def correlation_function(s1, s2, lags, mean_subtract=True, normalize=True):
     """ Computes the cross-correlation function between signals s1 and s2. The cross correlation function is defined as:
 
@@ -514,26 +521,21 @@ def correlation_function(s1, s2, lags, mean_subtract=True, normalize=True):
     :param normalize: If True, then divide the correlation function by the product of standard deviations of s1 and s2.
     :return: cf The cross correlation function evaluated at the lags.
     """
-    
-    assert len(s1) == len(s2), "Signals must be same length! len(s1)=%d, len(s2)=%d" % (len(s1), len(s2))
-    assert np.sum(np.isnan(s1)) == 0, "There are NaNs in s1"
-    assert np.sum(np.isnan(s2)) == 0, "There are NaNs in s2"
 
     s1_mean = 0
     s2_mean = 0
     if mean_subtract:
-        s1_mean = s1.mean()
-        s2_mean = s2.mean()
-
-    s1_std = s1.std(ddof=1)
-    s2_std = s2.std(ddof=1)
+        s1_mean = np.mean(s1)
+        s2_mean = np.mean(s2)
+    if normalize:
+        s1_std = matlab_std(s1)
+        s2_std = matlab_std(s2)
     s1_centered = s1 - s1_mean
     s2_centered = s2 - s2_mean
-    N = len(s1)
+    N = np.shape(s1)[0]
 
-    assert N > lags.max(), "Lags are too long, length of signal is %d, lags.max()=%d" % (N, lags.max())
 
-    cf = np.zeros([len(lags)])
+    cf = np.zeros(np.shape(lags)[0])
     for k,lag in enumerate(lags):
 
         if lag == 0:
