@@ -5,7 +5,8 @@ import mne
 import pandas as pd
 from scipy.fftpack import fft,fftfreq,ifft,fftshift
 from scipy.ndimage import convolve1d
-from scipy.signal import filter_design, resample, filtfilt, hann 
+from scipy.signal import filter_design, resample, filtfilt 
+from scipy.signal.windows import hann 
 import matplotlib.pyplot as plt
 import nitime.algorithms as ntalg
 from sklearn.decomposition import PCA
