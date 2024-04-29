@@ -385,6 +385,25 @@ class BioSound(object):
     def play(self):
     # Plays the sound
         play_sound_array(self.sound*(2**15), self.samprate)
+
+    def plot_spectrogram(self, DBNOISE=50, f_low=250, f_high=10000):
+        spec_colormap()   # defined in sound.py
+        cmap = plt.get_cmap('SpectroColorMap')
+        
+        if self.spectro.size != 0 :
+            soundSpect = self.spectro
+            if soundSpect.shape[0] == self.to.size:
+                soundSpect = np.transpose(soundSpect)
+            maxB = soundSpect.max()
+            minB = maxB-DBNOISE
+            soundSpect[soundSpect < minB] = minB
+            minSpect = soundSpect.min()
+            plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minSpect, vmax=maxB)
+        
+        plt.ylim(f_low, f_high)
+        plt.xlim(0, t[-1])
+        plt.ylabel('Frequency (Hz)')
+        plt.xlabel('Time (ms)')
             
     def plot(self, DBNOISE=50, f_low=250, f_high=10000, wt_low=-100, wt_high=100):
     # Plots a biosound in figures 1, 2, 3, 4
@@ -413,24 +432,8 @@ class BioSound(object):
       
         # Plot the spectrogram
         plt.axes([0.1, 0.1, 0.85, 0.6])
-        spec_colormap()   # defined in sound.py
-        cmap = plt.get_cmap('SpectroColorMap')
+        self.plot_spectrogram(DBNOISE=DBNOISE, f_low=f_low, f_high=f_high)
         
-        if self.spectro.size != 0 :
-            soundSpect = self.spectro
-            if soundSpect.shape[0] == self.to.size:
-                soundSpect = np.transpose(soundSpect)
-            maxB = soundSpect.max()
-            minB = maxB-DBNOISE
-            soundSpect[soundSpect < minB] = minB
-            minSpect = soundSpect.min()
-            plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minSpect, vmax=maxB)
-        
-        plt.ylim(f_low, f_high)
-        plt.xlim(0, t[-1])
-        plt.ylabel('Frequency (Hz)')
-        plt.xlabel('Time (ms)')
-                     
          # Plot the fundamental on the same figure
         if self.f0.size != 0 :
             fundplot = self.f0
