@@ -12,7 +12,7 @@ setup(
     classifiers = ['Development Status :: 4 - Beta',
                    'Programming Language :: Python :: 3.0'],
     install_requires = ['numpy',
-                      'scipy',
+                      'scipy>=1.7.0',
                       'matplotlib',
                       'h5py',
                       'mne',
