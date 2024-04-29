@@ -401,7 +401,7 @@ class BioSound(object):
             plt.imshow(soundSpect, extent = (self.to[0]*1000, self.to[-1]*1000, self.fo[0], self.fo[-1]), aspect='auto', interpolation='nearest', origin='lower', cmap=cmap, vmin=minSpect, vmax=maxB)
         
         plt.ylim(f_low, f_high)
-        plt.xlim(0, t[-1])
+        #plt.xlim(0, t[-1])
         plt.ylabel('Frequency (Hz)')
         plt.xlabel('Time (ms)')
             
