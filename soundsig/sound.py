@@ -365,7 +365,7 @@ class BioSound(object):
         if np.size(goodFund) == 0 or np.size(goodFund2) == 0:
             fund2prop = 0.0
         else:
-            fund2prop = np.float(np.size(goodFund2))/np.float(np.size(goodFund))
+            fund2prop = np.float64(np.size(goodFund2))/np.float64(np.size(goodFund))
             
         self.f0 = fund         # time varying fundamental
         self.f0_2 = fund2        # time varying fundamental of second voice
