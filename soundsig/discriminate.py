@@ -9,7 +9,7 @@ from sklearn.model_selection import StratifiedKFold
 from scipy.stats import binom
 
 
-def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None, MINCOUNTTRAINING=5):
+def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotFig = False, removeTickLabels = False, testInd = None, MINCOUNTTRAINING=5, cvFolds = -1):
     # Frederic's Robust Wrapper for discriminant analysis function.  Performs lda, qda and RF afer error checking, 
     # Generates nice plots and returns cross-validated
     # performance, stderr and base line.
@@ -21,6 +21,7 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     # Xcolname is a np.array or list of strings with column names for printout display
     # If testind is not specified it will produce a leave one out CV
     # MINCOUNTTRAINING: minimum number of samples in the training set.  
+    # cvFols is the number of folds used in cross-validation. -1 is leave-one-out CV (default),
     # returns: 
     #  ldaYes, qdaYes, rfYes : number of correct detection for lda, qda and random forest
     #  cvCount : number of tests in the cross validation
@@ -125,15 +126,18 @@ def discriminatePlot(X, y, cVal, titleStr='', figdir='.', Xcolname = None, plotF
     if testInd is None:
         # skf = StratifiedKFold(n_splits = cvFolds) 
         # skfList = skf.split(Xr, yGood)
-        # Use a leave one out cross-validation
-        skfList = []
-        n = len(yGood)
-        testAll = np.arange(n, dtype=int)
-        for i in range(n) :
-            test = np.array([i], dtype=int)
-            train = testAll[testAll != i]
-            skfList.append((train, test))
-
+        
+        if (cvFolds == -1):  # Use a leave one out cross-validation
+            skfList = []
+            n = len(yGood)
+            testAll = np.arange(n, dtype=int)
+            for i in range(n) :
+                test = np.array([i], dtype=int)
+                train = testAll[testAll != i]
+                skfList.append((train, test))
+        else:
+            skf = StratifiedKFold(n_splits = cvFolds) 
+            skfList = skf.split(Xr, yGood)
     else:
         skfList = [(trainInd,testInd)]
 
